@@ -50,6 +50,7 @@ export function newSession(clientLabel, format) {
   return {
     fortifymap: FILE_VERSION,
     id: (clientLabel || "map").toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-" + today() + "-" + Math.random().toString(36).slice(2, 7),
+    sync_id: crypto.randomUUID(),
     updated_at: nowStamp(),
     client_label: clientLabel || "",
     date: today(),
@@ -82,6 +83,7 @@ export function onChange(fn) { listeners.push(fn); }
 
 function emit() {
   session.updated_at = nowStamp();
+  if (!session.sync_id) session.sync_id = crypto.randomUUID();
   try { localStorage.setItem(LAST_KEY, session.id); } catch (e) { /* pointer only */ }
   idbPut(JSON.parse(JSON.stringify(session))).catch(() => { /* the export path still works; the roster will show staleness */ });
   for (const fn of listeners) fn(session);
@@ -123,6 +125,31 @@ export function load(obj) {
 }
 
 export function clear() { session = null; localStorage.removeItem(LAST_KEY); }
+
+// Index for the cabinet: what this device already holds, by sync_id.
+export async function sessionIndex() {
+  const all = await idbAll();
+  const idx = {};
+  for (const s2 of all) if (s2.sync_id) idx[s2.sync_id] = s2.updated_at || "";
+  return idx;
+}
+
+// Merge sessions pulled from the cabinet. Last write wins per sync_id.
+export async function importSessions(list) {
+  const all = await idbAll();
+  const bySync = {};
+  for (const s2 of all) if (s2.sync_id) bySync[s2.sync_id] = s2;
+  let merged = 0;
+  for (const incoming of list) {
+    if (!incoming || !incoming.sync_id) continue;
+    const local = bySync[incoming.sync_id];
+    if (local && (local.updated_at || "") >= (incoming.updated_at || "")) continue;
+    if (local) incoming.id = local.id;   // same practice record keeps its device identity
+    await idbPut(incoming);
+    merged++;
+  }
+  return merged;
+}
 
 // ---- ratings -------------------------------------------------------------
 

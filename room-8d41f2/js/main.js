@@ -9,6 +9,7 @@ import { NODES, VIEWBOX, pairKey } from "./geometry.js";
 import { RULES, ROOM_LAW, DOMAINS, LINES, FOLLOWUP_FORM, GAS_LABELS, METHOD_EVIDENCE, REFUSALS, PRIVACY_LINE } from "../content/content.js";
 import { PRACTICES, KEYSTONE_PROTOCOLS } from "../content/arsenal.js";
 import { EVIDENCE } from "../content/evidence.js";
+import * as Cabinet from "./cabinet.js";
 
 const $ = (sel) => document.querySelector(sel);
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; };
@@ -61,6 +62,62 @@ function initHome() {
   $("#btn-print-blank").addEventListener("click", () => { renderSheet(null, { blank: true }); window.print(); });
 }
 
+function renderCabinetBlock() {
+  const box = $("#cabinet-box"); if (!box) return;
+  box.textContent = "";
+  const st = Cabinet.getStatus();
+  const line = el("p", "mono cabinet-line", "cabinet · " + st.detail);
+  box.append(line);
+  if (st.state === "on") return;
+  if (st.state === "locked") {
+    const pw = el("input"); pw.type = "password"; pw.placeholder = "Practice passphrase"; pw.autocomplete = "current-password";
+    const go = el("button", "btn secondary", "Unlock the cabinet");
+    go.addEventListener("click", async () => {
+      try { await Cabinet.unlock(pw.value); await cabinetPull(); renderCabinetBlock(); renderRoster(); }
+      catch (e) { toast(e.message); }
+    });
+    const row = el("div", "home-row"); row.append(pw, go); box.append(row);
+    return;
+  }
+  // not set up on this device
+  const pw = el("input"); pw.type = "password"; pw.placeholder = "Practice passphrase"; pw.autocomplete = "new-password";
+  const tk = el("input"); tk.type = "password"; tk.placeholder = "Device token";
+  const start = el("button", "btn secondary", "Start the cabinet");
+  start.addEventListener("click", async () => {
+    if (!pw.value || !tk.value) { toast("Both the passphrase and the device token are needed."); return; }
+    try { await Cabinet.setup(pw.value, tk.value); await cabinetPush(); renderCabinetBlock(); }
+    catch (e) { toast("The cabinet rail is not reachable yet: " + e.message); }
+  });
+  const join = el("button", "btn quiet", "Join from another device");
+  join.addEventListener("click", async () => {
+    if (!pw.value || !tk.value) { toast("Both the passphrase and the device token are needed."); return; }
+    try { await Cabinet.join(pw.value, tk.value); await cabinetPull(); renderCabinetBlock(); renderRoster(); }
+    catch (e) { toast(e.message); }
+  });
+  const row = el("div", "home-row"); row.append(pw, tk); box.append(row);
+  const row2 = el("div", "home-row"); row2.style.marginTop = "0.5rem"; row2.append(start, join); box.append(row2);
+  box.append(el("p", "mono", "encrypted on this device before anything leaves. the passphrase is yours alone; losing it makes the cabinet unreadable, and your exported files remain the fallback."));
+}
+
+async function cabinetPull() {
+  const idx = await S.sessionIndex();
+  const pulled = await Cabinet.pullNewer(idx);
+  const good = pulled.filter(x => x && !x.__undecryptable);
+  const bad = pulled.length - good.length;
+  const merged = await S.importSessions(good);
+  if (merged) toast(`Cabinet restored ${merged} session${merged === 1 ? "" : "s"} to this device.`);
+  if (bad) toast(`${bad} cabinet row(s) could not be opened with this passphrase; they were left untouched.`);
+}
+
+// After first setup, file everything the device already holds.
+async function cabinetPush() {
+  const sessions = await S.listSessions();
+  for (const meta of sessions) {
+    const full = await S.open(meta.id);
+    Cabinet.file(full);
+  }
+}
+
 async function renderRoster() {
   const box = $("#roster"); if (!box) return;
   box.textContent = "";
@@ -108,6 +165,7 @@ function enterDay() {
       onLineTap: (key) => { S.cycleLoudness(key); },
     });
     S.onChange(() => { map.render(S.get()); renderTabBadge(); });
+    S.onChange((s2) => Cabinet.file(s2));
   }
   if (s.format === "circle" && !room) room = new Room(s);
   map.render(s);
@@ -889,6 +947,14 @@ function renderSheet(s, opts) {
 // ---------------------------------------------------------------- boot
 
 initHome();
+Cabinet.loadConf();
+renderCabinetBlock();
+Cabinet.onStatus((st) => {
+  const n = $("#save-note");
+  if (n) n.textContent = "autosaved on every touch · cabinet · " + st.detail;
+  const line = document.querySelector(".cabinet-line");
+  if (line) line.textContent = "cabinet · " + st.detail;
+});
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 // Acceptance hook: archetype replays load a file via ?replay= (used by tests, harmless live)
