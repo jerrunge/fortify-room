@@ -13,38 +13,46 @@
 </head>
 <body>
 
-<!-- HOME -->
+<!-- HOME: the arrival -->
 <section id="screen-home" class="screen active">
   <div class="home-inner">
-    <div class="wordmark">The Living Map <em>Fortify</em></div>
-    <p class="home-law" id="home-law"></p>
+    <div class="home-left">
+      <span class="mark">JEREMY RUNGE</span>
+      <div class="wordmark">The Living Map <em>Fortify · the mapping day, drawn together</em></div>
+      <p class="home-law" id="home-law"></p>
 
-    <div class="home-block">
-      <h2>A new day</h2>
-      <div class="home-row">
-        <input id="client-label" placeholder="Client initials or first name" style="flex:1; min-width:180px;">
-        <select id="format-pick">
-          <option value="solo">The Day · solo</option>
-          <option value="circle">The Circle Day</option>
-        </select>
-        <button class="btn" id="btn-start">Open the sheet</button>
+      <div class="home-block">
+        <h2>A new day</h2>
+        <div class="home-row">
+          <input id="client-label" placeholder="Client initials or first name" style="flex:1; min-width:180px;" aria-label="Client label">
+          <select id="format-pick" aria-label="Format">
+            <option value="solo">The Day · solo</option>
+            <option value="circle">The Circle Day</option>
+          </select>
+        </div>
+        <div class="home-row" style="margin-top:0.7rem;">
+          <button class="btn" id="btn-start">Open the sheet</button>
+        </div>
       </div>
+
+      <div class="home-block">
+        <h2>Continue</h2>
+        <div class="home-row">
+          <button class="btn secondary" id="btn-resume">Resume this device's session</button>
+          <button class="btn secondary" id="btn-open-file">Open a map file</button>
+          <input type="file" id="file-input" accept=".json,.fortifymap" class="hidden">
+        </div>
+        <div class="home-row" style="margin-top:0.6rem;">
+          <button class="btn quiet" id="btn-rerate-home">Day-90 re-rate</button>
+          <button class="btn quiet" id="btn-print-blank">Print the blank paper kit</button>
+        </div>
+      </div>
+
+      <p class="draftnote">internal draft · the words in this instrument await jeremy's edit and are not client-ready until it lands (rulings.md 2026-08-11) · sx module carries the jer-84 licensed-therapist review gate · content/content.js is the edit surface</p>
     </div>
-
-    <div class="home-block">
-      <h2>Continue</h2>
-      <div class="home-row">
-        <button class="btn secondary" id="btn-resume">Resume this device's session</button>
-        <button class="btn secondary" id="btn-open-file">Open a map file</button>
-        <input type="file" id="file-input" accept=".json,.fortifymap" class="hidden">
-      </div>
-      <div class="home-row" style="margin-top:0.6rem;">
-        <button class="btn quiet" id="btn-rerate-home">Day-90 re-rate (opens a map file)</button>
-        <button class="btn quiet" id="btn-print-blank">Print the blank paper kit</button>
-      </div>
+    <div class="home-ghostmap" id="home-ghostmap">
+      <p class="cap mono">ten domains, unlit. the morning draws them.</p>
     </div>
-
-    <p class="draftnote">internal draft · the words in this instrument await jeremy's edit and are not client-ready until it lands (rulings.md 2026-08-11) · sx module carries the jer-84 licensed-therapist review gate · content/content.js is the edit surface</p>
   </div>
 </section>
 
@@ -56,8 +64,10 @@
       <span class="law" id="day-law"></span>
     </div>
     <svg id="map-svg" role="img" aria-label="The map: ten domains, drawn as it is worked"></svg>
+    <div class="lens-card" id="lens-card"></div>
     <div class="map-tools">
       <button class="tool" id="tool-connect">draw a line</button>
+      <button class="tool" id="tool-lens">face the client</button>
       <button class="tool" id="tool-home">home</button>
       <span class="mono" id="save-note" style="margin-left:auto;">autosaved on every touch</span>
     </div>

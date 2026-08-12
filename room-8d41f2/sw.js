@@ -1,10 +1,12 @@
 // Offline-first shell. The room never waits on a network.
 // DEPLOY RULE: bump CACHE on every deploy, or devices keep the old build.
-const CACHE = "fortify-room-v2";
+const CACHE = "fortify-room-v3";
 const SHELL = [
   "./", "./index.html", "./app.css", "./manifest.webmanifest",
   "./js/main.js", "./js/map.js", "./js/state.js", "./js/geometry.js",
   "./content/content.js", "./content/arsenal.js", "./content/evidence.js",
+  "./fonts/schibsted.woff2", "./fonts/newsreader.woff2", "./fonts/newsreader-italic.woff2",
+  "./fonts/plexmono-400.woff2", "./fonts/plexmono-500.woff2",
 ];
 self.addEventListener("install", (e) => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

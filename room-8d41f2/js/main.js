@@ -4,7 +4,7 @@
 // beyond what the scoring table on the spec names, and never hides a field.
 
 import * as S from "./state.js";
-import { MapView, lineDef } from "./map.js";
+import { MapView, lineDef, ghostMap } from "./map.js";
 import { NODES, VIEWBOX, pairKey } from "./geometry.js";
 import { RULES, ROOM_LAW, DOMAINS, LINES, FOLLOWUP_FORM, GAS_LABELS, METHOD_EVIDENCE, REFUSALS, PRIVACY_LINE } from "../content/content.js";
 import { PRACTICES, KEYSTONE_PROTOCOLS } from "../content/arsenal.js";
@@ -32,6 +32,7 @@ function show(id) {
 
 function initHome() {
   $("#home-law").textContent = "“" + ROOM_LAW + "”";
+  $("#home-ghostmap").prepend(ghostMap());
   $("#btn-start").addEventListener("click", () => {
     const label = $("#client-label").value.trim();
     if (!label) { $("#client-label").focus(); return; }
@@ -75,7 +76,10 @@ function enterDay() {
       onNodeTap: (code) => {
         if (connectMode) return; // handled inside MapView pairing
         const i = walkOrder.indexOf(code);
-        if (i >= 0) { currentDomain = i; setTab("walk"); }
+        if (i < 0) return;
+        currentDomain = i;
+        if (lens) { renderLensCard(); return; }  // in the client's hands, a node tap moves their card
+        setTab("walk");
       },
       onConnect: (key) => {
         const def = lineDef(key);
@@ -92,13 +96,50 @@ function enterDay() {
   map.render(s);
   renderTabs(); setTab(currentTab);
   $("#tool-connect").onclick = () => setConnect(!connectMode);
+  $("#tool-lens").onclick = () => setLens(true);
   $("#tool-home").onclick = () => { show("#screen-home"); };
+}
+
+// ---------------------------------------------------------------- the client lens
+// "Face the client": the screen turns, and the apparatus leaves. The client sees
+// the map, the current domain's anchors, and their bar. Less apparatus, never
+// less record: everything recorded still renders here, because it is theirs.
+let lens = false;
+function setLens(on) {
+  lens = on;
+  document.body.classList.toggle("lens", on);
+  renderLensCard();
+}
+function renderLensCard() {
+  const card = $("#lens-card"); card.textContent = "";
+  if (!lens) return;
+  const s = S.get();
+  const d = DOMAINS.find(x => x.code === walkOrder[currentDomain]);
+  const inner = el("div", "lens-inner");
+  const h = el("h2"); h.append(el("span", "code", d.code), document.createTextNode(d.name)); inner.append(h);
+  const dl = el("dl", "anchors");
+  for (const k of [2, 5, 8]) { dl.append(el("dt", null, String(k)), el("dd", null, d.anchors[k])); }
+  inner.append(dl);
+  const bar = el("div", "ratebar");
+  const cur = s.ratings[d.code]?.value;
+  for (let v = 0; v <= 10; v++) {
+    const b = el("button", cur === v ? "sel" : "", String(v));
+    b.addEventListener("click", () => { S.rate(d.code, v); renderLensCard(); });
+    bar.append(b);
+  }
+  inner.append(bar);
+  const exit = el("button", "lens-exit mono", "console");
+  exit.addEventListener("click", () => setLens(false));
+  inner.append(exit);
+  card.append(inner);
 }
 
 function setConnect(on) {
   connectMode = on;
   $("#tool-connect").classList.toggle("on", on);
   $("#tool-connect").textContent = on ? "tap two domains…" : "draw a line";
+  $("#day-law").textContent = on ? "tap the first domain, then the second. the line is pulled, never computed."
+                                 : ROOM_LAW.toLowerCase();
   if (!on) map.setConnectFrom(null);
   else {
     // the next node tap arms the pairing
@@ -130,9 +171,11 @@ function renderTabs() {
 function renderTabBadge() { /* reserved for counts; deliberately quiet */ }
 
 function setTab(id) {
+  const switched = id !== currentTab;
   currentTab = id;
   renderTabs();
   const body = $("#rail-body"); body.textContent = "";
+  if (switched) { body.classList.remove("enter"); void body.offsetWidth; body.classList.add("enter"); }
   if (id === "walk") renderWalk(body);
   if (id === "lines") renderLines(body);
   if (id === "keystone") renderKeystone(body);
@@ -696,6 +739,7 @@ function shareBtn(fn) {
 
 function renderSheet(s, opts) {
   const sheet = $("#sheet"); sheet.textContent = "";
+  sheet.append(el("div", "s-mark", "JEREMY RUNGE"));
   const head = el("div", "s-head");
   head.append(el("b", null, "FORTIFY · THE MAP"));
   head.append(el("span", "s-meta", s ? `${s.client_label} · jeremy · ${s.date} · the client keeps this original` : "blank kit · rated together, in conversation"));
