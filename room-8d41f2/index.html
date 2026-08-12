@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#EFEEE7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>The Living Map · Fortify</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<!-- HOME -->
+<section id="screen-home" class="screen active">
+  <div class="home-inner">
+    <div class="wordmark">The Living Map <em>Fortify</em></div>
+    <p class="home-law" id="home-law"></p>
+
+    <div class="home-block">
+      <h2>A new day</h2>
+      <div class="home-row">
+        <input id="client-label" placeholder="Client initials or first name" style="flex:1; min-width:180px;">
+        <select id="format-pick">
+          <option value="solo">The Day · solo</option>
+          <option value="circle">The Circle Day</option>
+        </select>
+        <button class="btn" id="btn-start">Open the sheet</button>
+      </div>
+    </div>
+
+    <div class="home-block">
+      <h2>Continue</h2>
+      <div class="home-row">
+        <button class="btn secondary" id="btn-resume">Resume this device's session</button>
+        <button class="btn secondary" id="btn-open-file">Open a map file</button>
+        <input type="file" id="file-input" accept=".json,.fortifymap" class="hidden">
+      </div>
+      <div class="home-row" style="margin-top:0.6rem;">
+        <button class="btn quiet" id="btn-rerate-home">Day-90 re-rate (opens a map file)</button>
+        <button class="btn quiet" id="btn-print-blank">Print the blank paper kit</button>
+      </div>
+    </div>
+
+    <p class="draftnote">internal draft · the words in this instrument await jeremy's edit and are not client-ready until it lands (rulings.md 2026-08-11) · sx module carries the jer-84 licensed-therapist review gate · content/content.js is the edit surface</p>
+  </div>
+</section>
+
+<!-- DAY -->
+<section id="screen-day" class="screen">
+  <div class="map-pane">
+    <div class="map-head">
+      <span class="names" id="day-names"></span>
+      <span class="law" id="day-law"></span>
+    </div>
+    <svg id="map-svg" role="img" aria-label="The map: ten domains, drawn as it is worked"></svg>
+    <div class="map-tools">
+      <button class="tool" id="tool-connect">draw a line</button>
+      <button class="tool" id="tool-home">home</button>
+      <span class="mono" id="save-note" style="margin-left:auto;">autosaved on every touch</span>
+    </div>
+  </div>
+  <div class="rail">
+    <div class="tabs" id="tabs"></div>
+    <div class="rail-body" id="rail-body"></div>
+  </div>
+</section>
+
+<!-- RERATE -->
+<section id="screen-rerate" class="screen"><div class="wiz" id="rerate-body"></div></section>
+
+<!-- modal -->
+<div class="modal-wrap" id="modal-wrap"><div class="modal" id="modal-body"></div></div>
+
+<!-- the printed Sheet -->
+<div id="sheet"></div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

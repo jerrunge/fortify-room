@@ -1,0 +1,198 @@
+{
+ "fortifymap": 1,
+ "client_label": "A1",
+ "date": "2026-08-11",
+ "format": "solo",
+ "ratings": {
+  "PH": {
+   "value": 3,
+   "history": [
+    {
+     "from": 6,
+     "to": 3,
+     "at": "2026-08-11 10:40",
+     "phase": "day"
+    }
+   ],
+   "words": [
+    {
+     "text": "I function fine on six hours. Everyone says that, though, don't they.",
+     "at": "2026-08-11 09:30",
+     "paper_only": false
+    }
+   ]
+  },
+  "ME": {
+   "value": 4,
+   "history": [],
+   "words": [
+    {
+     "text": "The evenings are just flat. Nothing lands.",
+     "at": "2026-08-11 09:30",
+     "paper_only": false
+    }
+   ]
+  },
+  "CG": {
+   "value": 5,
+   "history": [],
+   "words": [
+    {
+     "text": "I reread things now. That's new.",
+     "at": "2026-08-11 09:30",
+     "paper_only": false
+    }
+   ]
+  },
+  "SX": {
+   "value": 6,
+   "history": [],
+   "words": []
+  },
+  "RL": {
+   "value": 6,
+   "history": [],
+   "words": []
+  },
+  "SC": {
+   "value": 7,
+   "history": [],
+   "words": []
+  },
+  "FI": {
+   "value": 8,
+   "history": [],
+   "words": []
+  },
+  "EN": {
+   "value": 6,
+   "history": [],
+   "words": []
+  },
+  "SP": {
+   "value": 7,
+   "history": [],
+   "words": []
+  },
+  "ID": {
+   "value": 7,
+   "history": [],
+   "words": []
+  }
+ },
+ "lines": {
+  "ME\u00b7PH": {
+   "pair": [
+    "PH",
+    "ME"
+   ],
+   "loudness": 3,
+   "keystone": true,
+   "notes": ""
+  },
+  "CG\u00b7PH": {
+   "pair": [
+    "CG",
+    "PH"
+   ],
+   "loudness": 2,
+   "keystone": true,
+   "notes": ""
+  }
+ },
+ "keystone": {
+  "sentence": "I've been calling it fine while it quietly taxed everything.",
+  "ink": null
+ },
+ "plan": [
+  {
+   "practice_ref": "sleep-audit",
+   "title": "The fourteen-night sleep-opportunity audit",
+   "referral": false,
+   "contact": "",
+   "dose": "Eight hours in bed, fixed window",
+   "day": "Tonight is night one; fourteen nights",
+   "works": [
+    "PH"
+   ],
+   "gas": {
+    "-2": "The log stopped. Information, not failure; first agenda item next session.",
+    "-1": "Six to nine nights at opportunity; the log itself held.",
+    "0": "Ten of fourteen nights at eight hours in bed, every night logged either way.",
+    "1": "Twelve or more nights at full opportunity.",
+    "2": "All fourteen nights logged, and the two curves reviewed together on day 15."
+   },
+   "checkins": [
+    {
+     "at": "2026-08-25 18:00",
+     "level": 1
+    }
+   ]
+  },
+  {
+   "practice_ref": "circadian-light",
+   "title": "Circadian light hygiene",
+   "referral": false,
+   "contact": "",
+   "dose": "Morning outside; sources cut at night",
+   "day": "Set once, tonight",
+   "works": [
+    "EN"
+   ],
+   "gas": {
+    "-2": "",
+    "-1": "",
+    "0": "Morning light most days; screens dimmed by ten.",
+    "1": "",
+    "2": ""
+   },
+   "checkins": []
+  },
+  {
+   "practice_ref": "cyclic-sighing",
+   "title": "Cyclic sighing, five minutes a day",
+   "referral": false,
+   "contact": "",
+   "dose": "Five minutes",
+   "day": "Daily",
+   "works": [
+    "ME"
+   ],
+   "gas": {
+    "-2": "",
+    "-1": "",
+    "0": "Five of seven days each week.",
+    "1": "",
+    "2": ""
+   },
+   "checkins": []
+  },
+  {
+   "practice_ref": "cbti-referral",
+   "title": "CBT-I when sleep is genuinely broken",
+   "referral": true,
+   "contact": "",
+   "dose": "",
+   "day": "Only if the audit shows he cannot use the opportunity he has",
+   "works": [
+    "PH"
+   ],
+   "gas": {
+    "-2": "",
+    "-1": "",
+    "0": "The gate: audit result decides; a name and a number ready.",
+    "1": "",
+    "2": ""
+   },
+   "checkins": []
+  }
+ ],
+ "rerates": [],
+ "exports": [],
+ "log": [
+  {
+   "at": "2026-08-11 10:40",
+   "text": "PH moved 6 to 3 after the sleep-opportunity conversation"
+  }
+ ]
+}

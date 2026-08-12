@@ -1,0 +1,194 @@
+{
+ "fortifymap": 1,
+ "client_label": "A2",
+ "date": "2026-08-11",
+ "format": "solo",
+ "ratings": {
+  "PH": {
+   "value": 6,
+   "history": [],
+   "words": []
+  },
+  "ME": {
+   "value": 4,
+   "history": [],
+   "words": [
+    {
+     "text": "Mornings are empty. Decisions feel weightless.",
+     "at": "2026-08-11 09:30",
+     "paper_only": false
+    }
+   ]
+  },
+  "CG": {
+   "value": 6,
+   "history": [],
+   "words": []
+  },
+  "SX": {
+   "value": 6,
+   "history": [],
+   "words": []
+  },
+  "RL": {
+   "value": 6,
+   "history": [],
+   "words": []
+  },
+  "SC": {
+   "value": 5,
+   "history": [],
+   "words": []
+  },
+  "FI": {
+   "value": 9,
+   "history": [],
+   "words": [
+    {
+     "text": "Money is genuinely fine. That is not the problem, which is the problem.",
+     "at": "2026-08-11 09:30",
+     "paper_only": false
+    }
+   ]
+  },
+  "EN": {
+   "value": 7,
+   "history": [],
+   "words": []
+  },
+  "SP": {
+   "value": 2,
+   "history": [],
+   "words": [
+    {
+     "text": "What now. I don't have an answer I respect.",
+     "at": "2026-08-11 09:30",
+     "paper_only": false
+    }
+   ]
+  },
+  "ID": {
+   "value": 3,
+   "history": [
+    {
+     "from": 5,
+     "to": 3,
+     "at": "2026-08-11 11:10",
+     "phase": "day"
+    }
+   ],
+   "words": [
+    {
+     "text": "The company was my name.",
+     "at": "2026-08-11 09:30",
+     "paper_only": false
+    }
+   ]
+  }
+ },
+ "lines": {
+  "FI\u00b7ID": {
+   "pair": [
+    "FI",
+    "ID"
+   ],
+   "loudness": 3,
+   "keystone": true,
+   "notes": ""
+  },
+  "ID\u00b7SP": {
+   "pair": [
+    "SP",
+    "ID"
+   ],
+   "loudness": 2,
+   "keystone": true,
+   "notes": ""
+  }
+ },
+ "keystone": {
+  "sentence": "The scoreboard left and I kept playing to it.",
+  "ink": null
+ },
+ "plan": [
+  {
+   "practice_ref": "behavioural-activation",
+   "title": "Behavioural activation",
+   "referral": false,
+   "contact": "",
+   "dose": "Activity log week one, monitoring only; then live blocks scheduled",
+   "day": "Log opens today",
+   "works": [
+    "ME"
+   ],
+   "gas": {
+    "-2": "The log stopped.",
+    "-1": "Log held, no blocks scheduled.",
+    "0": "Log complete; three live blocks in the calendar by day 30, gone to on schedule.",
+    "1": "Five or more blocks, kept on the schedule not the feeling.",
+    "2": "Blocks kept four consecutive weeks."
+   },
+   "checkins": []
+  },
+  {
+   "practice_ref": "values-affirmation",
+   "title": "Values affirmation",
+   "referral": false,
+   "contact": "",
+   "dose": "Rank, then ten minutes on why the top one matters",
+   "day": "Before every consequential decision",
+   "works": [
+    "ID"
+   ],
+   "gas": {
+    "-2": "",
+    "-1": "",
+    "0": "Written before each of the next three decisions.",
+    "1": "",
+    "2": ""
+   },
+   "checkins": []
+  },
+  {
+   "practice_ref": "job-crafting",
+   "title": "Job crafting",
+   "referral": false,
+   "contact": "",
+   "dose": "One change per line: tasks, relationships, the sentence he uses about himself",
+   "day": "Days 31 to 90",
+   "works": [
+    "ID"
+   ],
+   "gas": {
+    "-2": "",
+    "-1": "",
+    "0": "One crafted change per line by day 90.",
+    "1": "",
+    "2": ""
+   },
+   "checkins": []
+  },
+  {
+   "practice_ref": "purpose-measurable",
+   "title": "Purpose as a measurable variable",
+   "referral": false,
+   "contact": "",
+   "dose": "The SP rating re-rated, not discussed",
+   "day": "Midpoint and close",
+   "works": [
+    "SP"
+   ],
+   "gas": {
+    "-2": "",
+    "-1": "",
+    "0": "SP re-rated twice; movement treated as an outcome.",
+    "1": "",
+    "2": ""
+   },
+   "checkins": []
+  }
+ ],
+ "rerates": [],
+ "exports": [],
+ "log": []
+}

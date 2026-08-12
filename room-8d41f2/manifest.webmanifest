@@ -1,0 +1,11 @@
+{
+  "name": "The Living Map · Fortify",
+  "short_name": "Living Map",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#EFEEE7",
+  "theme_color": "#EFEEE7",
+  "icons": []
+}

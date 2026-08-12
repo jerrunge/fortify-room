@@ -1,0 +1,197 @@
+{
+ "fortifymap": 1,
+ "client_label": "A3",
+ "date": "2026-08-11",
+ "format": "solo",
+ "ratings": {
+  "PH": {
+   "value": 4,
+   "history": [],
+   "words": [
+    {
+     "text": "Same short nights for months.",
+     "at": "2026-08-11 09:30",
+     "paper_only": false
+    }
+   ]
+  },
+  "ME": {
+   "value": 4,
+   "history": [],
+   "words": []
+  },
+  "CG": {
+   "value": 5,
+   "history": [],
+   "words": []
+  },
+  "SX": {
+   "value": 2,
+   "history": [
+    {
+     "from": 3,
+     "to": 2,
+     "at": "2026-08-11 11:35",
+     "phase": "day"
+    }
+   ],
+   "words": [
+    {
+     "text": "I read it as something wrong with me.",
+     "at": "2026-08-11 09:30",
+     "paper_only": false
+    }
+   ]
+  },
+  "RL": {
+   "value": 4,
+   "history": [],
+   "words": [
+    {
+     "text": "She thinks I've gone somewhere. I have, kind of.",
+     "at": "2026-08-11 09:30",
+     "paper_only": false
+    }
+   ]
+  },
+  "SC": {
+   "value": 5,
+   "history": [],
+   "words": []
+  },
+  "FI": {
+   "value": 7,
+   "history": [],
+   "words": []
+  },
+  "EN": {
+   "value": 6,
+   "history": [],
+   "words": []
+  },
+  "SP": {
+   "value": 6,
+   "history": [],
+   "words": []
+  },
+  "ID": {
+   "value": 5,
+   "history": [],
+   "words": []
+  }
+ },
+ "lines": {
+  "PH\u00b7SX": {
+   "pair": [
+    "PH",
+    "SX"
+   ],
+   "loudness": 3,
+   "keystone": true,
+   "notes": ""
+  },
+  "RL\u00b7SX": {
+   "pair": [
+    "SX",
+    "RL"
+   ],
+   "loudness": 3,
+   "keystone": true,
+   "notes": ""
+  },
+  "ME\u00b7PH": {
+   "pair": [
+    "PH",
+    "ME"
+   ],
+   "loudness": 2,
+   "keystone": false,
+   "notes": ""
+  }
+ },
+ "keystone": {
+  "sentence": "It's attention and exhaustion, not the marriage.",
+  "ink": null
+ },
+ "plan": [
+  {
+   "practice_ref": "sleep-audit",
+   "title": "The fourteen-night sleep-opportunity audit",
+   "referral": false,
+   "contact": "",
+   "dose": "Eight hours in bed, fixed window",
+   "day": "Fourteen nights, starting tonight",
+   "works": [
+    "PH"
+   ],
+   "gas": {
+    "-2": "The log stopped. Information, not failure.",
+    "-1": "Six to nine nights.",
+    "0": "Ten of fourteen nights at opportunity, all logged.",
+    "1": "Twelve or more.",
+    "2": "All fourteen, curves reviewed day 15."
+   },
+   "checkins": []
+  },
+  {
+   "practice_ref": "aerobic-sexual",
+   "title": "Aerobic exercise, prescribed as a sexual-function intervention",
+   "referral": false,
+   "contact": "",
+   "dose": "40 minutes, moderate to vigorous, four times a week",
+   "day": "Days 15 to 60 establish it; the dose is six months and the plan says so",
+   "works": [
+    "SX"
+   ],
+   "gas": {
+    "-2": "",
+    "-1": "",
+    "0": "Three of four sessions most weeks by day 60.",
+    "1": "",
+    "2": ""
+   },
+   "checkins": []
+  },
+  {
+   "practice_ref": "attention-training",
+   "title": "Attention training against cognitive distraction",
+   "referral": false,
+   "contact": "",
+   "dose": "First rep run in the room; low-stakes settings first",
+   "day": "Daily reps",
+   "works": [
+    "SX"
+   ],
+   "gas": {
+    "-2": "",
+    "-1": "",
+    "0": "The spectator named; reps most days.",
+    "1": "",
+    "2": ""
+   },
+   "checkins": []
+  },
+  {
+   "practice_ref": "couple-therapy",
+   "title": "Couple therapy, by referral",
+   "referral": true,
+   "contact": "",
+   "dose": "",
+   "day": "Where indicated; the relationship goal stays in this plan either way",
+   "works": [
+    "RL"
+   ],
+   "gas": {
+    "-2": "",
+    "-1": "",
+    "0": "A name and a number in hand; her experience reviewed beside his at every check-in.",
+    "1": "",
+    "2": ""
+   },
+   "checkins": []
+  }
+ ],
+ "rerates": [],
+ "exports": [],
+ "log": []
+}
