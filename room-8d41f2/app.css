@@ -303,3 +303,13 @@ body.lens .lens-card{display:block; border-top:1px solid var(--hairline); backgr
 .lens-exit{position:absolute; top:0; right:0; border:1px dotted var(--silver); border-radius:2px;
   padding:0.35rem 0.6rem; color:var(--silver); background:transparent; min-height:36px;}
 .lens-exit:hover{color:var(--slate); border-color:var(--slate-l);}
+
+/* ---------- provenance: quiet citations, never buttons ----------
+   The estate's convention (the Model page): tap the text, dotted underline.
+   A citation is a footnote you can open, not an action the room asks you to take. */
+.cite{font-family:var(--mono); font-size:0.62rem; letter-spacing:0.05em; text-transform:lowercase;
+  color:var(--rust); background:none; border:none; border-bottom:1px dotted var(--rust);
+  padding:0.15rem 0.05rem; border-radius:0; min-height:0; cursor:pointer;
+  transition:color 140ms var(--ease), border-color 140ms var(--ease);}
+.cite:hover{color:var(--land); border-bottom-color:var(--land);}
+.cite-row{display:flex; gap:0.9rem 1.1rem; flex-wrap:wrap; align-items:baseline; margin-top:0.4rem;}

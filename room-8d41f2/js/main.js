@@ -220,13 +220,12 @@ function renderWalk(body) {
   card.append(bar);
 
   const hist = s.ratings[d.code]?.history || [];
-  card.append(el("div", "ghosttrail", hist.map(g => `${g.from} → ${g.to} · ${g.at.slice(11)}`).join("   ")));
+  card.append(el("div", "ghosttrail", hist.map(g => `moved ${g.from} → ${g.to} at ${g.at.slice(11)}`).join("   ·   ")));
 
   // follow-up form, cited
-  const fu = el("p", "followup", "“" + FOLLOWUP_FORM + "”  ");
-  const fuChip = el("button", "chipbtn", "source");
-  fuChip.addEventListener("click", () => openEvidence("sfbt-scaling-questions"));
-  fu.append(fuChip); card.append(fu);
+  const fu = el("p", "followup", "“" + FOLLOWUP_FORM + "”");
+  fu.append(cite("sfbt-scaling-questions", "de shazer & berg"));
+  card.append(fu);
 
   // margin words
   const mw = el("div", "margin-words");
@@ -259,12 +258,8 @@ function renderWalk(body) {
 
   // evidence chips for the domain
   if (d.evidence.length) {
-    const evRow = el("div", "line-controls");
-    d.evidence.forEach(k => {
-      const c = el("button", "chipbtn rusty", "◦ " + (EVIDENCE[k] ? shortSrc(k) : k));
-      c.addEventListener("click", () => openEvidence(k));
-      evRow.append(c);
-    });
+    const evRow = el("div", "cite-row");
+    d.evidence.forEach(k => evRow.append(cite(k)));
     card.append(el("h3", null, "The research standing under this domain"), evRow);
   }
 
@@ -279,7 +274,20 @@ function renderWalk(body) {
   body.append(card);
 }
 
-function shortSrc(k) { return (EVIDENCE[k].src.split(",")[0] || k).replace(/ [A-Z]{1,3}$/, ""); }
+function shortSrc(k) {
+  const src = EVIDENCE[k].src;
+  const name = (src.split(",")[0] || k).replace(/ [A-Z]{1,3}$/, "");
+  const year = (src.match(/\b(19|20)\d{2}\b/) || [""])[0];
+  return year ? `${name} ${year}` : name;
+}
+
+// Provenance is a footnote you can open, never an action the room asks for.
+function cite(key, label) {
+  const c = el("button", "cite", label || (EVIDENCE[key] ? shortSrc(key) : key));
+  c.setAttribute("aria-label", "Where this comes from");
+  c.addEventListener("click", () => openEvidence(key));
+  return c;
+}
 
 // ---------------------------------------------------------------- lines
 
@@ -299,19 +307,19 @@ function renderLines(body) {
     if (def.probe) item.append(el("p", "probe", "“" + def.probe + "”"));
     item.append(el("p", "followup", "then: “" + FOLLOWUP_FORM + "”"));
     const controls = el("div", "line-controls");
-    const loud = el("button", "chipbtn", "loudness → " + (l.loudness >= 3 ? 1 : l.loudness + 1));
+    const loud = el("button", "chipbtn", l.loudness >= 3 ? "quieter" : "louder");
     loud.addEventListener("click", () => { S.cycleLoudness(key); setTab("lines"); });
     const keyb = el("button", "chipbtn" + (l.keystone ? " keyed" : ""), l.keystone ? "keystone ✓" : "mark keystone");
     keyb.addEventListener("click", () => { S.toggleKeystoneLine(key); setTab("lines"); });
     const rm = el("button", "chipbtn", "remove");
     rm.addEventListener("click", () => { S.removeLine(key); setTab("lines"); });
     controls.append(loud, keyb, rm);
-    (def.evidence || []).forEach(k2 => {
-      const c = el("button", "chipbtn rusty", "◦ source");
-      c.addEventListener("click", () => openEvidence(k2));
-      controls.append(c);
-    });
     item.append(controls);
+    if ((def.evidence || []).length) {
+      const evRow = el("div", "cite-row");
+      def.evidence.forEach(k2 => evRow.append(cite(k2)));
+      item.append(evRow);
+    }
     if (key === openLineKey) item.scrollIntoView({ block: "nearest" });
     body.append(item);
   }
@@ -412,9 +420,9 @@ function renderPlan(body) {
       gas.append(row);
     }
     if (!expectedFilled) gas.append(el("p", "gas-note", "level 0 first: expected means realistic if the plan holds, not aspirational. the other levels unlock when it is written."));
-    const gasChip = el("button", "chipbtn rusty", "◦ why five levels (GAS)");
-    gasChip.addEventListener("click", () => openEvidence("gas-idiographic-validated"));
-    gas.append(gasChip);
+    const gasRow = el("div", "cite-row");
+    gasRow.append(cite("gas-idiographic-validated", "why five levels · kiresuk & sherman"));
+    gas.append(gasRow);
     card.append(gas);
 
     // check-ins
@@ -455,9 +463,7 @@ function renderPlan(body) {
   rrBtn.disabled = !touched.length;
   rrBtn.addEventListener("click", () => startRerate(touched));
   rrRow.append(rrBtn);
-  const dj = el("button", "chipbtn rusty", "◦ why brief re-rates");
-  dj.addEventListener("click", () => openEvidence("progress-feedback-d014-029"));
-  rrRow.append(dj);
+  rrRow.append(cite("progress-feedback-d014-029", "why brief re-rates · de jong 2021"));
   body.append(rrRow);
 }
 
@@ -562,11 +568,9 @@ function renderAbout(body) {
   METHOD_EVIDENCE.forEach(k => {
     const ev = EVIDENCE[k]; if (!ev) return;
     const tr = el("tr");
-    const td1 = el("td", null, k);
-    const td2 = el("td");
-    const btn = el("button", "chipbtn rusty", "open");
-    btn.addEventListener("click", () => openEvidence(k));
-    td2.append(document.createTextNode(ev.claim + " "), btn);
+    const td1 = el("td");
+    td1.append(cite(k));
+    const td2 = el("td", null, ev.claim);
     tr.append(td1, td2); t.append(tr);
   });
   body.append(t);
@@ -589,7 +593,8 @@ function openEvidence(key) {
     m.append(el("p", "claim", ev.claim));
     const meta = el("p", "meta");
     meta.innerHTML = "";
-    meta.append(document.createTextNode(ev.src + (ev.doi ? " · doi " + ev.doi : "")), el("br"), document.createTextNode(ev.pop + " · " + ev.design + " · ledger status: " + ev.status));
+    const standing = ev.status === "corrected" ? "verified at source · corrected wording carried" : "verified at source";
+    meta.append(document.createTextNode(ev.src + (ev.doi ? " · doi " + ev.doi : "")), el("br"), document.createTextNode(ev.pop + " · " + ev.design + " · " + standing));
     m.append(meta);
     m.append(el("p", "note", ev.note));
   }
