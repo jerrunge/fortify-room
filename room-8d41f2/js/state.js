@@ -2,12 +2,55 @@
 // Law: nothing exists in this file the client cannot see rendered (the export
 // review screen renders every field; there are no fields it skips).
 
-const STORE_KEY = "fortify-room-session-v1";
+// The library: every session is its own IndexedDB record. Starting a new day
+// never touches an old one. localStorage keeps only a pointer to the last-active
+// session for fast resume. The durable artifact remains the .fortifymap file.
+const LAST_KEY = "fortify-room-last-session";
 const FILE_VERSION = 1;
+const DB_NAME = "fortify-room";
+const DB_STORE = "sessions";
+
+let dbp = null;
+function db() {
+  if (dbp) return dbp;
+  dbp = new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(DB_STORE, { keyPath: "id" });
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  return dbp;
+}
+async function idbPut(obj) {
+  const d = await db();
+  return new Promise((resolve, reject) => {
+    const tx = d.transaction(DB_STORE, "readwrite");
+    tx.objectStore(DB_STORE).put(obj);
+    tx.oncomplete = resolve; tx.onerror = () => reject(tx.error);
+  });
+}
+async function idbGet(id) {
+  const d = await db();
+  return new Promise((resolve, reject) => {
+    const req = d.transaction(DB_STORE).objectStore(DB_STORE).get(id);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function idbAll() {
+  const d = await db();
+  return new Promise((resolve, reject) => {
+    const req = d.transaction(DB_STORE).objectStore(DB_STORE).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}
 
 export function newSession(clientLabel, format) {
   return {
     fortifymap: FILE_VERSION,
+    id: (clientLabel || "map").toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-" + today() + "-" + Math.random().toString(36).slice(2, 7),
+    updated_at: nowStamp(),
     client_label: clientLabel || "",
     date: today(),
     format: format || "solo",           // solo | circle
@@ -38,27 +81,48 @@ export function get() { return session; }
 export function onChange(fn) { listeners.push(fn); }
 
 function emit() {
-  try { localStorage.setItem(STORE_KEY, JSON.stringify(session)); } catch (e) { /* storage full: the export path still works */ }
+  session.updated_at = nowStamp();
+  try { localStorage.setItem(LAST_KEY, session.id); } catch (e) { /* pointer only */ }
+  idbPut(JSON.parse(JSON.stringify(session))).catch(() => { /* the export path still works; the roster will show staleness */ });
   for (const fn of listeners) fn(session);
 }
 
 export function start(clientLabel, format) { session = newSession(clientLabel, format); emit(); return session; }
 
-export function resume() {
+export async function resume() {
   try {
-    const raw = localStorage.getItem(STORE_KEY);
-    if (!raw) return null;
-    session = JSON.parse(raw);
+    const id = localStorage.getItem(LAST_KEY);
+    if (!id) return null;
+    session = await idbGet(id);
     return session;
   } catch (e) { return null; }
 }
 
+export async function listSessions() {
+  try {
+    const all = await idbAll();
+    return all
+      .map(s2 => ({ id: s2.id, client_label: s2.client_label, date: s2.date, format: s2.format, updated_at: s2.updated_at || s2.date }))
+      .sort((a, b) => (b.updated_at || "").localeCompare(a.updated_at || ""));
+  } catch (e) { return []; }
+}
+
+export async function open(id) {
+  const s2 = await idbGet(id);
+  if (!s2) throw new Error("Session not found on this device.");
+  session = s2;
+  try { localStorage.setItem(LAST_KEY, id); } catch (e) { /* pointer only */ }
+  for (const fn of listeners) fn(session);
+  return session;
+}
+
 export function load(obj) {
   if (!obj || obj.fortifymap !== FILE_VERSION) throw new Error("Not a fortifymap v1 file.");
+  if (!obj.id) obj.id = (obj.client_label || "map").toLowerCase().replace(/[^a-z0-9]+/g, "-") + "-" + (obj.date || today()) + "-" + Math.random().toString(36).slice(2, 7);
   session = obj; emit(); return session;
 }
 
-export function clear() { session = null; localStorage.removeItem(STORE_KEY); }
+export function clear() { session = null; localStorage.removeItem(LAST_KEY); }
 
 // ---- ratings -------------------------------------------------------------
 

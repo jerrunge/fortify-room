@@ -313,3 +313,16 @@ body.lens .lens-card{display:block; border-top:1px solid var(--hairline); backgr
   transition:color 140ms var(--ease), border-color 140ms var(--ease);}
 .cite:hover{color:var(--land); border-bottom-color:var(--land);}
 .cite-row{display:flex; gap:0.9rem 1.1rem; flex-wrap:wrap; align-items:baseline; margin-top:0.4rem;}
+
+/* ---------- the practice roster ---------- */
+.roster-row{display:flex; flex-direction:column; gap:0.15rem; width:100%; text-align:left;
+  background:var(--paper); border:1px solid var(--hairline); border-radius:3px;
+  padding:0.65rem 0.8rem; margin-bottom:0.45rem; transition:border-color 140ms var(--ease);}
+.roster-row:hover{border-color:var(--slate);}
+.roster-name{font-family:var(--display); font-weight:700; font-size:0.98rem; color:var(--land);}
+
+/* ---------- since last time ---------- */
+.since-block{background:var(--paper); border:1px solid var(--kelp); border-radius:3px;
+  padding:0.9rem 1rem; margin-bottom:1rem;}
+.since-block p{font-size:0.92rem; margin-top:0.3rem;}
+.since-item{color:var(--land);}

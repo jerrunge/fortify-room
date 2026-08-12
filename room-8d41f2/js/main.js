@@ -40,10 +40,7 @@ function initHome() {
     currentTab = "walk"; currentDomain = 0; room = null;
     enterDay();
   });
-  $("#btn-resume").addEventListener("click", () => {
-    if (S.resume()) enterDay();
-    else toast("No session on this device yet.");
-  });
+  renderRoster();
   $("#btn-open-file").addEventListener("click", () => $("#file-input").click());
   $("#file-input").addEventListener("change", async (e) => {
     const f = e.target.files[0]; if (!f) return;
@@ -62,6 +59,26 @@ function initHome() {
     input.click();
   });
   $("#btn-print-blank").addEventListener("click", () => { renderSheet(null, { blank: true }); window.print(); });
+}
+
+async function renderRoster() {
+  const box = $("#roster"); if (!box) return;
+  box.textContent = "";
+  const sessions = await S.listSessions();
+  if (!sessions.length) {
+    box.append(el("p", "mono", "nothing on this device yet. sessions land here the moment they begin, and stay."));
+    return;
+  }
+  for (const meta of sessions.slice(0, 12)) {
+    const row = el("button", "roster-row");
+    row.append(el("span", "roster-name", meta.client_label || "—"));
+    row.append(el("span", "mono", `${meta.date}${meta.format === "circle" ? " · circle" : ""} · last touched ${meta.updated_at || meta.date}`));
+    row.addEventListener("click", async () => {
+      try { await S.open(meta.id); currentTab = "walk"; currentDomain = 0; room = null; enterDay(); }
+      catch (err) { toast(err.message); }
+    });
+    box.append(row);
+  }
 }
 
 // ---------------------------------------------------------------- day
@@ -97,7 +114,7 @@ function enterDay() {
   renderTabs(); setTab(currentTab);
   $("#tool-connect").onclick = () => setConnect(!connectMode);
   $("#tool-lens").onclick = () => setLens(true);
-  $("#tool-home").onclick = () => { show("#screen-home"); };
+  $("#tool-home").onclick = () => { show("#screen-home"); renderRoster(); };
 }
 
 // ---------------------------------------------------------------- the client lens
@@ -364,6 +381,24 @@ function renderKeystone(body) {
 
 function renderPlan(body) {
   const s = S.get();
+
+  // The follow-up starting point: what moved, and what leads the agenda.
+  const checked = s.plan.filter(p => p.checkins.length);
+  if (checked.length) {
+    const last = checked.map(p => p.checkins[p.checkins.length - 1].at).sort().pop();
+    const behind = s.plan.filter(p => p.checkins.length && p.checkins[p.checkins.length - 1].level < 0);
+    const since = el("div", "since-block");
+    since.append(el("h3", null, "Since last time"));
+    since.append(el("p", "mono", `last check-in ${last}`));
+    if (behind.length) {
+      since.append(el("p", null, "First agenda, by the plan's own rule (a level below expected leads the session):"));
+      behind.forEach(p => since.append(el("p", "since-item", "· " + p.title + "  (level " + p.checkins[p.checkins.length - 1].level + ")")));
+    } else {
+      since.append(el("p", null, "Every checked-in item sits at expected or better. The session opens wherever he chooses."));
+    }
+    body.append(since);
+  }
+
   const add = el("div", "plan-add");
   const sel = el("select");
   sel.append(new Option("Add from the Arsenal…", ""));
@@ -854,6 +889,7 @@ function renderSheet(s, opts) {
 // ---------------------------------------------------------------- boot
 
 initHome();
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 // Acceptance hook: archetype replays load a file via ?replay= (used by tests, harmless live)
 window.__fortify = { load: (obj) => { S.load(obj); enterDay(); }, get: () => S.get(), startRerate };
