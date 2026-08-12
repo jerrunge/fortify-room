@@ -4,9 +4,9 @@
 // beyond what the scoring table on the spec names, and never hides a field.
 
 import * as S from "./state.js";
-import { MapView, lineDef, ghostMap } from "./map.js";
+import { MapView, lineDef, ghostMap, lightFor } from "./map.js";
 import { NODES, VIEWBOX, pairKey } from "./geometry.js";
-import { RULES, ROOM_LAW, DOMAINS, LINES, FOLLOWUP_FORM, GAS_LABELS, METHOD_EVIDENCE, REFUSALS, PRIVACY_LINE } from "../content/content.js";
+import { RULES, ROOM_LAW, DOMAINS, LINES, FOLLOWUP_FORM, GAS_LABELS, METHOD_EVIDENCE, REFUSALS, PRIVACY_LINE, CLIENT_READY, DRAFT_LINE, LENS_EXIT_LABEL, PAPER_ONLY_LABEL } from "../content/content.js";
 import { PRACTICES, KEYSTONE_PROTOCOLS } from "../content/arsenal.js";
 import { EVIDENCE } from "../content/evidence.js";
 import * as Cabinet from "./cabinet.js";
@@ -34,6 +34,10 @@ function show(id) {
 function initHome() {
   $("#home-law").textContent = "“" + ROOM_LAW + "”";
   $("#home-ghostmap").prepend(ghostMap());
+  if (!CLIENT_READY) {
+    const d = el("p", "draftnote", DRAFT_LINE);
+    $(".home-left").append(d);
+  }
   $("#btn-start").addEventListener("click", () => {
     const label = $("#client-label").value.trim();
     if (!label) { $("#client-label").focus(); return; }
@@ -62,13 +66,21 @@ function initHome() {
   $("#btn-print-blank").addEventListener("click", () => { renderSheet(null, { blank: true }); window.print(); });
 }
 
+let cabinetOpenUI = false;
 function renderCabinetBlock() {
   const box = $("#cabinet-box"); if (!box) return;
   box.textContent = "";
   const st = Cabinet.getStatus();
-  const line = el("p", "mono cabinet-line", "cabinet · " + st.detail);
-  box.append(line);
+  const row0 = el("div", "home-row");
+  row0.append(el("p", "mono cabinet-line", "cabinet · " + st.detail));
+  if (st.state !== "on") {
+    const manage = el("button", "btn quiet", cabinetOpenUI ? "Close" : "Set up");
+    manage.addEventListener("click", () => { cabinetOpenUI = !cabinetOpenUI; renderCabinetBlock(); });
+    row0.append(manage);
+  }
+  box.append(row0);
   if (st.state === "on") return;
+  if (!cabinetOpenUI) return;
   if (st.state === "locked") {
     const pw = el("input"); pw.type = "password"; pw.placeholder = "Practice passphrase"; pw.autocomplete = "current-password";
     const go = el("button", "btn secondary", "Unlock the cabinet");
@@ -128,7 +140,7 @@ async function renderRoster() {
   }
   for (const meta of sessions.slice(0, 12)) {
     const row = el("button", "roster-row");
-    row.append(el("span", "roster-name", meta.client_label || "—"));
+    row.append(el("span", "roster-name", meta.client_label || "·"));
     row.append(el("span", "mono", `${meta.date}${meta.format === "circle" ? " · circle" : ""} · last touched ${meta.updated_at || meta.date}`));
     row.addEventListener("click", async () => {
       try { await S.open(meta.id); currentTab = "walk"; currentDomain = 0; room = null; enterDay(); }
@@ -143,7 +155,7 @@ async function renderRoster() {
 function enterDay() {
   const s = S.get();
   show("#screen-day");
-  $("#day-names").textContent = (s.client_label || "—") + "  ·  Jeremy   ·  " + s.date + (s.format === "circle" ? "  ·  circle" : "");
+  $("#day-names").textContent = (s.client_label || "·") + "  ·  Jeremy   ·  " + s.date + (s.format === "circle" ? "  ·  circle" : "");
   $("#day-law").textContent = ROOM_LAW.toLowerCase();
   if (!map) {
     map = new MapView($("#map-svg"), {
@@ -159,10 +171,17 @@ function enterDay() {
         const def = lineDef(key);
         S.addLine(key, def.pair);
         setConnect(false);
+        $("#day-law").textContent = "line drawn. tap it on the map to change its loudness; its probe is in the lines tab.";
         openLineKey = key;
         setTab("lines");
       },
-      onLineTap: (key) => { S.cycleLoudness(key); },
+      onLineTap: (key) => {
+        if (lens) return;   // in the client lens, lines are read-only (record protected)
+        S.cycleLoudness(key);
+      },
+      onConnectInvalid: (a, b) => {
+        $("#day-law").textContent = NODES[a].name.toLowerCase() + " and " + NODES[b].name.toLowerCase() + " are not one of the map's twenty-two lines. tap two connected domains, or tap the tool to stop.";
+      },
     });
     S.onChange(() => { map.render(S.get()); renderTabBadge(); });
     S.onChange((s2) => Cabinet.file(s2));
@@ -191,21 +210,26 @@ function renderLensCard() {
   const s = S.get();
   const d = DOMAINS.find(x => x.code === walkOrder[currentDomain]);
   const inner = el("div", "lens-inner");
-  const h = el("h2"); h.append(el("span", "code", d.code), document.createTextNode(d.name)); inner.append(h);
+  const h = el("h2");
+  const cs = el("span", "code", d.code); cs.setAttribute("aria-hidden", "true");
+  h.append(cs, document.createTextNode(d.name)); inner.append(h);
   const dl = el("dl", "anchors");
   for (const k of [2, 5, 8]) { dl.append(el("dt", null, String(k)), el("dd", null, d.anchors[k])); }
   inner.append(dl);
   const bar = el("div", "ratebar");
+  bar.setAttribute("role", "radiogroup"); bar.setAttribute("aria-label", d.name + ", 0 to 10");
   const cur = s.ratings[d.code]?.value;
   for (let v = 0; v <= 10; v++) {
     const b = el("button", cur === v ? "sel" : "", String(v));
+    b.setAttribute("role", "radio"); b.setAttribute("aria-checked", cur === v ? "true" : "false");
+    b.setAttribute("aria-label", d.name + " " + v + " of 10");
     b.addEventListener("click", () => { S.rate(d.code, v); renderLensCard(); });
     bar.append(b);
   }
   inner.append(bar);
-  const exit = el("button", "lens-exit mono", "console");
+  const exit = el("button", "lens-exit", LENS_EXIT_LABEL);
   exit.addEventListener("click", () => setLens(false));
-  inner.append(exit);
+  inner.prepend(exit);
   card.append(inner);
 }
 
@@ -227,6 +251,25 @@ function setConnect(on) {
   }
 }
 
+// ---------------------------------------------------------------- undo (C2: calm recovery, no modals)
+let lastRemoved = null;   // { kind, restore(), label }
+let undoTimer = null;
+function offerUndo(label, restore) {
+  lastRemoved = { label, restore };
+  clearTimeout(undoTimer);
+  renderUndoChip();
+  undoTimer = setTimeout(() => { lastRemoved = null; renderUndoChip(); }, 8000);
+}
+function renderUndoChip() {
+  document.querySelectorAll(".undo-chip").forEach(n => n.remove());
+  if (!lastRemoved) return;
+  const chip = el("button", "undo-chip", lastRemoved.label + " · undo");
+  chip.addEventListener("click", () => {
+    lastRemoved.restore(); lastRemoved = null; renderUndoChip(); setTab(currentTab);
+  });
+  $("#rail-body")?.prepend(chip);
+}
+
 // ---------------------------------------------------------------- tabs
 
 const TABS = [
@@ -236,11 +279,16 @@ const TABS = [
 
 function renderTabs() {
   const t = $("#tabs"); t.textContent = "";
+  t.setAttribute("role", "tablist");
+  const hadFocus = document.activeElement && document.activeElement.classList?.contains("tab");
   for (const [id, label] of TABS) {
     const b = el("button", "tab" + (id === currentTab ? " on" : ""), label);
     b.dataset.tab = id;
+    b.setAttribute("role", "tab");
+    b.setAttribute("aria-selected", id === currentTab ? "true" : "false");
     b.addEventListener("click", () => setTab(id));
     t.append(b);
+    if (hadFocus && id === currentTab) queueMicrotask(() => b.focus());
   }
 }
 function renderTabBadge() { /* reserved for counts; deliberately quiet */ }
@@ -274,8 +322,9 @@ function renderWalk(body) {
 
   const d = DOMAINS.find(x => x.code === walkOrder[currentDomain]);
   const card = el("div", "dcard");
-  const h = el("h2"); h.append(el("span", "code", d.code), document.createTextNode(d.name)); card.append(h);
-  if (d.gate) card.append(el("span", "gate", "module gated: licensed-therapist review before client use (" + d.gate + ")"));
+  const h = el("h2");
+  const codeSpan = el("span", "code", d.code); codeSpan.setAttribute("aria-hidden", "true");
+  h.append(codeSpan, document.createTextNode(d.name)); card.append(h);
   card.append(el("p", "desc", d.desc));
   card.append(el("p", "opening", "“" + d.opening + "”"));
 
@@ -285,10 +334,13 @@ function renderWalk(body) {
 
   // the client's bar: 0..10
   const bar = el("div", "ratebar");
+  bar.setAttribute("role", "radiogroup"); bar.setAttribute("aria-label", d.name + ", 0 to 10");
   const cur = s.ratings[d.code]?.value;
   for (let v = 0; v <= 10; v++) {
     const b = el("button", cur === v ? "sel" : "", String(v));
-    b.setAttribute("aria-label", d.name + " " + v);
+    b.setAttribute("role", "radio");
+    b.setAttribute("aria-checked", cur === v ? "true" : "false");
+    b.setAttribute("aria-label", d.name + " " + v + " of 10");
     b.addEventListener("click", () => { S.rate(d.code, v); setTab("walk"); });
     bar.append(b);
   }
@@ -311,6 +363,7 @@ function renderWalk(body) {
     mw.append(row);
   });
   const ta = el("textarea"); ta.placeholder = "Their exact words. The number says how much; the words say what.";
+  ta.setAttribute("aria-label", "Their words, for the margin");
   const addRow = el("div", "walk-next");
   const addBtn = el("button", "btn secondary", "Add to the margin");
   addBtn.addEventListener("click", () => { S.addWords(d.code, ta.value); ta.value = ""; setTab("walk"); });
@@ -369,6 +422,26 @@ function cite(key, label) {
 function renderLines(body) {
   const s = S.get();
   body.append(el("p", "mono", "lines are pulled in the room (draw a line, tap two domains). tap a line on the map to change its loudness."));
+  // the non-spatial path: every line the Model publishes, addable from a list
+  const addRow = el("div", "plan-add");
+  const sel = el("select");
+  sel.setAttribute("aria-label", "Draw a line from the list");
+  sel.append(new Option("Draw a line from the list…", ""));
+  for (const l of LINES) {
+    const key = pairKey(l.pair[0], l.pair[1]);
+    if (s.lines[key]) continue;
+    const names = l.pair.map(c => NODES[c]?.name || c).join(" · ");
+    sel.append(new Option(names + (l.name ? "  ·  " + l.name : ""), key));
+  }
+  sel.addEventListener("change", () => {
+    if (!sel.value) return;
+    const def = lineDef(sel.value);
+    S.addLine(sel.value, def.pair);
+    openLineKey = sel.value;
+    setTab("lines");
+  });
+  addRow.append(sel);
+  body.append(addRow);
   const drawn = Object.entries(s.lines);
   if (!drawn.length) body.append(el("p", null, "No lines yet. The map shows which connections are loud; those get their probes."));
   for (const [key, l] of drawn) {
@@ -387,7 +460,12 @@ function renderLines(body) {
     const keyb = el("button", "chipbtn" + (l.keystone ? " keyed" : ""), l.keystone ? "keystone ✓" : "mark keystone");
     keyb.addEventListener("click", () => { S.toggleKeystoneLine(key); setTab("lines"); });
     const rm = el("button", "chipbtn", "remove");
-    rm.addEventListener("click", () => { S.removeLine(key); setTab("lines"); });
+    rm.addEventListener("click", () => {
+      const snapshot = JSON.parse(JSON.stringify(l));
+      S.removeLine(key);
+      setTab("lines");
+      offerUndo("line removed", () => { const nl = S.addLine(key, snapshot.pair); Object.assign(nl, snapshot); });
+    });
     controls.append(loud, keyb, rm);
     item.append(controls);
     if ((def.evidence || []).length) {
@@ -409,13 +487,17 @@ function renderKeystone(body) {
   body.append(el("h3", null, "The keystone, named. In their words, or not yet."));
   body.append(el("p", "mono", "mark the cascade's lines in the lines tab; they take the rust color. the sentence is the client's: typed or written by hand. there is no draft to offer."));
   const ta = el("textarea", "key-sentence");
+  ta.setAttribute("aria-label", "The keystone sentence, in the client's own words");
   ta.value = s.keystone.sentence || "";
   // deliberately no placeholder: the field offers nothing
-  ta.addEventListener("change", () => S.setKeystone(ta.value, s.keystone.ink));
+  let kt = null;
+  ta.addEventListener("input", () => { clearTimeout(kt); kt = setTimeout(() => S.setKeystone(ta.value, S.get().keystone.ink), 600); });
+  ta.addEventListener("change", () => { clearTimeout(kt); S.setKeystone(ta.value, S.get().keystone.ink); });
   body.append(ta);
 
   body.append(el("p", "key-note", "or by hand:"));
   const pad = el("canvas"); pad.id = "ink-pad"; pad.width = 900; pad.height = 300;
+  pad.setAttribute("aria-label", "Handwriting space for the keystone sentence, pencil or finger");
   body.append(pad);
   const ctx = pad.getContext("2d");
   ctx.lineWidth = 3.2; ctx.lineCap = "round"; ctx.strokeStyle = "#26251F";
@@ -429,7 +511,12 @@ function renderKeystone(body) {
 
   const row = el("div", "walk-next");
   const clearB = el("button", "btn quiet", "Clear the ink");
-  clearB.addEventListener("click", () => { ctx.clearRect(0, 0, pad.width, pad.height); S.setKeystone(ta.value, null); });
+  clearB.addEventListener("click", () => {
+    const oldInk = s.keystone.ink;
+    ctx.clearRect(0, 0, pad.width, pad.height);
+    S.setKeystone(ta.value, null);
+    if (oldInk) offerUndo("ink cleared", () => S.setKeystone(ta.value, oldInk));
+  });
   row.append(clearB);
   if (room) row.append(shareBtn(() => room.share("keystone", { sentence: S.get().keystone.sentence })));
   body.append(row);
@@ -487,7 +574,7 @@ function renderPlan(body) {
     const h = el("h4", null, item.title);
     if (item.referral) h.append(el("span", "refchip", "referral · a name and a number"));
     card.append(h);
-    card.append(el("p", "mono", "works · " + item.works.join(" · ")));
+    card.append(el("p", "mono", "works on · " + item.works.map(c => (NODES[c]?.name || c).toLowerCase()).join(" · ")));
 
     const grid = el("div", "plan-grid");
     if (item.referral) {
@@ -520,10 +607,14 @@ function renderPlan(body) {
 
     // check-ins
     const ci = el("div", "checkin-row");
+    ci.setAttribute("role", "radiogroup"); ci.setAttribute("aria-label", "Check-in level for " + item.title);
     ci.append(el("span", "mono", "check-in:"));
     for (const lvl of [-2, -1, 0, 1, 2]) {
       const last = item.checkins[item.checkins.length - 1];
-      const b = el("button", last && last.level === lvl ? "circled" : "", lvl > 0 ? "+" + lvl : String(lvl));
+      const sel2 = last && last.level === lvl;
+      const b = el("button", sel2 ? "circled" : "", lvl > 0 ? "+" + lvl : String(lvl));
+      b.setAttribute("role", "radio"); b.setAttribute("aria-checked", sel2 ? "true" : "false");
+      b.setAttribute("aria-label", item.title + " level " + (lvl > 0 ? "+" + lvl : lvl));
       b.addEventListener("click", () => { S.checkin(i, lvl); setTab("plan"); });
       ci.append(b);
     }
@@ -534,7 +625,12 @@ function renderPlan(body) {
 
     const controls = el("div", "line-controls");
     const rm = el("button", "chipbtn", "remove item");
-    rm.addEventListener("click", () => { S.removePlanItem(i); setTab("plan"); });
+    rm.addEventListener("click", () => {
+      const snapshot = JSON.parse(JSON.stringify(item));
+      S.removePlanItem(i);
+      setTab("plan");
+      offerUndo("plan item removed", () => S.addPlanItem(snapshot));
+    });
     controls.append(rm);
     if (room) controls.append(shareBtn(() => room.share("plan-item", { title: item.title, dose: item.dose, day: item.day })));
     card.append(controls);
@@ -560,10 +656,19 @@ function renderPlan(body) {
   body.append(rrRow);
 }
 
-function labeled(text, node) { const w = el("div"); w.append(el("label", null, text), node); return w; }
+let fieldSeq = 0;
+function labeled(text, node) {
+  const w = el("div");
+  const lab = el("label", null, text);
+  const id = "f" + (++fieldSeq);
+  node.id = id; lab.setAttribute("for", id);
+  w.append(lab, node); return w;
+}
 function input(val, onChange) {
   const i = el("input"); i.value = val || "";
-  i.addEventListener("change", () => onChange(i.value));
+  let t = null;
+  i.addEventListener("input", () => { clearTimeout(t); t = setTimeout(() => onChange(i.value), 500); });
+  i.addEventListener("change", () => { clearTimeout(t); onChange(i.value); });
   return i;
 }
 
@@ -572,80 +677,113 @@ function input(val, onChange) {
 function renderClose(body) {
   const s = S.get();
   body.append(el("h3", null, "The export ceremony"));
-  body.append(el("p", null, "Everything the file contains is below. Nothing leaves this device that is not on this screen."));
   body.append(el("p", "privacy", PRIVACY_LINE));
 
-  // review: EVERY field
-  const b1 = el("div", "review-block");
-  b1.append(el("h4", null, "Session"));
-  b1.append(el("div", null, `${s.client_label} · ${s.date} · ${s.format}`));
-  body.append(b1);
-
-  for (const d of DOMAINS) {
-    const r = s.ratings[d.code]; if (!r) continue;
-    const blk = el("div", "review-block");
-    blk.append(el("h4", null, `${d.code} ${d.name} · ${r.value ?? "—"}`));
-    (r.history || []).forEach(g => blk.append(el("div", "mono", `moved ${g.from} → ${g.to} at ${g.at}`)));
-    (r.words || []).forEach((w, wi) => {
-      const row = el("div", "word-item");
-      row.append(el("span", null, "“" + w.text + "”"));
-      const lab = el("label", "mono"); const cb = el("input"); cb.type = "checkbox"; cb.checked = w.paper_only;
-      cb.addEventListener("change", () => S.setPaperOnly(d.code, wi, cb.checked));
-      lab.append(cb, document.createTextNode(" paper only"));
-      row.append(lab); blk.append(row);
-    });
-    body.append(blk);
-  }
-
-  const bl = el("div", "review-block"); bl.append(el("h4", null, "Lines"));
-  Object.values(s.lines).forEach(l => bl.append(el("div", null, `${l.pair.join(" · ")} · loudness ${l.loudness}${l.keystone ? " · keystone" : ""}`)));
-  body.append(bl);
-
-  const bk = el("div", "review-block"); bk.append(el("h4", null, "Keystone"));
-  bk.append(el("div", null, s.keystone.sentence ? "“" + s.keystone.sentence + "”" : "not named yet"));
-  if (s.keystone.ink) bk.append(el("div", "mono", "plus the handwritten ink, which prints on the sheet"));
-  body.append(bk);
-
-  const bp = el("div", "review-block"); bp.append(el("h4", null, "Plan"));
-  s.plan.forEach(p => bp.append(el("div", null, `${p.title}${p.referral ? " (referral: " + (p.contact || "—") + ")" : " · " + (p.dose || "—") + " · " + (p.day || "—")}`)));
-  body.append(bp);
-
-  if (s.rerates.length) {
-    const br = el("div", "review-block"); br.append(el("h4", null, "Re-rates"));
-    s.rerates.forEach(r => br.append(el("div", "mono", `${r.at} · ${Array.isArray(r.scope) ? r.scope.join(",") : r.scope}${r.day0_pulled_early ? " · day 0 pulled early (client's right)" : ""}`)));
-    body.append(br);
-  }
-  if (s.log.length) {
-    const bg = el("div", "review-block"); bg.append(el("h4", null, "Room log"));
-    s.log.forEach(m => bg.append(el("div", "mono", `${m.at} · ${m.text}`)));
-    body.append(bg);
-  }
-
+  // the actions lead; every completion is confirmed with the exact artifact
+  const status = el("div", "export-status");
   const actions = el("div", "export-actions");
+  const confirm = (msg) => { status.textContent = ""; status.append(el("p", "mono done-line", msg)); };
   const printB = el("button", "btn", "Print the Sheet");
-  printB.addEventListener("click", () => { S.recordExport("print"); renderSheet(S.get(), {}); window.print(); });
+  printB.addEventListener("click", () => { S.recordExport("print"); renderSheet(S.get(), {}); window.print(); confirm("the sheet went to print · " + S.nowStamp().slice(11)); });
   const dl = el("button", "btn secondary", "Download the map file");
   dl.addEventListener("click", () => {
     S.recordExport("download");
     const blob = new Blob([JSON.stringify(S.toFile({ stripPaperOnly: true }), null, 2)], { type: "application/json" });
     const a = el("a"); a.href = URL.createObjectURL(blob); a.download = S.fileName(); a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    confirm("saved · " + S.fileName());
   });
   actions.append(printB, dl);
   if (navigator.canShare) {
     const share = el("button", "btn secondary", "Hand it over (AirDrop / share)");
     share.addEventListener("click", async () => {
       const file = new File([JSON.stringify(S.toFile({ stripPaperOnly: true }), null, 2)], S.fileName(), { type: "application/json" });
-      if (navigator.canShare({ files: [file] })) { S.recordExport("share"); try { await navigator.share({ files: [file] }); } catch (e) { /* client changed their mind: fine */ } }
-      else toast("Sharing files is not available here; download instead.");
+      if (navigator.canShare({ files: [file] })) {
+        S.recordExport("share");
+        try { await navigator.share({ files: [file] }); confirm("handed over · " + S.fileName()); }
+        catch (e) { confirm("the handoff was closed before sending; nothing left the device"); }
+      } else toast("Sharing files is not available here; download instead.");
     });
     actions.append(share);
   }
   const blank = el("button", "btn quiet", "Print the blank paper kit");
   blank.addEventListener("click", () => { renderSheet(null, { blank: true }); window.print(); });
   actions.append(blank);
-  body.append(actions);
+  body.append(actions, status);
   body.append(el("p", "mono", "the client keeps the original. jeremy keeps a copy only if the client sends him one."));
+
+  body.append(el("h3", null, "Everything the file contains"));
+  body.append(el("p", null, "The complete record, every field. Nothing leaves this device that is not on this screen."));
+
+  const b1 = el("div", "review-block");
+  b1.append(el("h4", null, "Session"));
+  b1.append(el("div", null, `${s.client_label} · ${s.date} · ${s.format}`));
+  b1.append(el("div", "mono", `record ${s.id} · backup key ${s.sync_id || "not yet assigned"} · last touched ${s.updated_at || s.date}`));
+  body.append(b1);
+
+  for (const d of DOMAINS) {
+    const r = s.ratings[d.code]; if (!r) continue;
+    const blk = el("div", "review-block");
+    blk.append(el("h4", null, `${d.name} · ${r.value ?? "·"}`));
+    (r.history || []).forEach(g => blk.append(el("div", "mono", `moved ${g.from} → ${g.to} at ${g.at}`)));
+    (r.words || []).forEach((w, wi) => {
+      const row = el("label", "word-item word-choice");
+      const cb = el("input"); cb.type = "checkbox"; cb.checked = w.paper_only;
+      cb.addEventListener("change", () => S.setPaperOnly(d.code, wi, cb.checked));
+      row.append(cb, el("span", null, "“" + w.text + "”"), el("span", "mono", PAPER_ONLY_LABEL));
+      blk.append(row);
+    });
+    body.append(blk);
+  }
+
+  const bl = el("div", "review-block"); bl.append(el("h4", null, "Lines"));
+  Object.values(s.lines).forEach(l => {
+    const names = l.pair.map(c => NODES[c]?.name || c).join(" · ");
+    bl.append(el("div", null, `${names} · loudness ${l.loudness}${l.keystone ? " · keystone" : ""}${l.notes ? " · note: “" + l.notes + "”" : ""}`));
+  });
+  if (!Object.keys(s.lines).length) bl.append(el("div", "mono", "none drawn"));
+  body.append(bl);
+
+  const bk = el("div", "review-block"); bk.append(el("h4", null, "Keystone"));
+  bk.append(el("div", null, s.keystone.sentence ? "“" + s.keystone.sentence + "”" : "not named yet"));
+  bk.append(el("div", "mono", s.keystone.ink ? "plus the handwritten ink, which prints on the sheet and travels in the file" : "no handwritten ink"));
+  body.append(bk);
+
+  const bp = el("div", "review-block"); bp.append(el("h4", null, "The plan, with its measures"));
+  s.plan.forEach(p2 => {
+    const item = el("div", "review-plan-item");
+    item.append(el("div", "review-plan-title", p2.title + (p2.referral ? "  (referral: " + (p2.contact || "no name yet") + (p2.day ? ", by " + p2.day : "") + ")" : "  ·  " + (p2.dose || "no dose yet") + "  ·  " + (p2.day || "no day yet"))));
+    item.append(el("div", "mono", "works on " + p2.works.map(c => (NODES[c]?.name || c).toLowerCase()).join(", ")));
+    for (const lvl of ["2", "1", "0", "-1", "-2"]) {
+      if (p2.gas[lvl]) item.append(el("div", "review-gas", (lvl === "0" ? "0 expected" : (lvl > 0 ? "+" + lvl : lvl)) + " · " + p2.gas[lvl]));
+    }
+    if (p2.checkins.length) item.append(el("div", "mono", "check-ins · " + p2.checkins.map(c => `${c.at.slice(0, 10)} level ${c.level > 0 ? "+" + c.level : c.level}`).join(" · ")));
+    bp.append(item);
+  });
+  if (!s.plan.length) bp.append(el("div", "mono", "no plan items yet"));
+  body.append(bp);
+
+  const br = el("div", "review-block"); br.append(el("h4", null, "Re-rates"));
+  s.rerates.forEach(r => {
+    br.append(el("div", null, `${r.at} · ${Array.isArray(r.scope) ? r.scope.map(c => NODES[c]?.name || c).join(", ") : "the full map"} · ` +
+      Object.entries(r.values).map(([c, v]) => `${NODES[c]?.name || c} ${v}`).join(", ") +
+      (r.day0_pulled_early ? " · day 0 was shown early, at the client's right" : "")));
+  });
+  if (!s.rerates.length) br.append(el("div", "mono", "none yet"));
+  body.append(br);
+
+  const bx = el("div", "review-block"); bx.append(el("h4", null, "Exports and room log"));
+  s.exports.forEach(x => bx.append(el("div", "mono", `${x.at} · ${x.kind}`)));
+  s.log.forEach(m => bx.append(el("div", "mono", `${m.at} · ${m.text}`)));
+  if (!s.exports.length && !s.log.length) bx.append(el("div", "mono", "empty"));
+  body.append(bx);
+
+  // the structural guarantee behind "everything": the raw file itself, readable
+  const raw = el("details", "review-block");
+  const sum = el("summary", null, "The raw file, exactly as it leaves this device");
+  const pre = el("pre", "rawfile", JSON.stringify(S.toFile({ stripPaperOnly: true }), null, 1));
+  raw.append(sum, pre);
+  body.append(raw);
 }
 
 // ---------------------------------------------------------------- about
@@ -672,14 +810,18 @@ function renderAbout(body) {
   RULES.forEach(x => { const li = el("li", null, x); li.style.setProperty("list-style", "none"); r2.append(li); });
   body.append(r2);
   body.append(el("p", "privacy", PRIVACY_LINE));
-  body.append(el("p", "mono", "every claim chip in this instrument is generated from claims_ledger (fortify-life-os). a claim retired in the ledger cannot ship in the next build: scripts/evidence-check.mjs fails it."));
+  body.append(el("p", "mono", "every citation in this instrument is verified at its source before it may appear here, and re-verified before every release."));
 }
 
 // ---------------------------------------------------------------- evidence modal
 
+let modalReturnFocus = null;
 function openEvidence(key) {
+  modalReturnFocus = document.activeElement;
   const ev = EVIDENCE[key];
   const m = $("#modal-body"); m.textContent = "";
+  m.setAttribute("role", "dialog"); m.setAttribute("aria-modal", "true");
+  m.setAttribute("aria-label", "Where this comes from");
   if (!ev) { m.append(el("p", null, "This citation is not in the current evidence file: " + key)); }
   else {
     m.append(el("h3", null, "Where this comes from"));
@@ -696,8 +838,16 @@ function openEvidence(key) {
   c.addEventListener("click", closeModal);
   row.append(c); m.append(row);
   $("#modal-wrap").classList.add("open");
+  queueMicrotask(() => c.focus());
 }
-function closeModal() { $("#modal-wrap").classList.remove("open"); }
+function closeModal() {
+  $("#modal-wrap").classList.remove("open");
+  if (modalReturnFocus && modalReturnFocus.isConnected) modalReturnFocus.focus();
+  modalReturnFocus = null;
+}
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && $("#modal-wrap").classList.contains("open")) closeModal();
+});
 $("#modal-wrap").addEventListener("pointerdown", (e) => { if (e.target.id === "modal-wrap") closeModal(); });
 
 function toast(msg) { openToast(msg); }
@@ -714,7 +864,6 @@ function openToast(msg) {
 
 function startRerate(scope) {
   // scope: "full" (day-90, sequenced: fresh first) or [codes] (engagement)
-  const s = S.get();
   const full = scope === "full";
   const codes = full ? DOMAINS.map(d => d.code) : scope;
   const values = {};
@@ -725,39 +874,76 @@ function startRerate(scope) {
 
   function step() {
     body.textContent = "";
-    if (idx >= codes.length) { finish(); return; }
+    if (idx >= codes.length) { review(); return; }
     const d = DOMAINS.find(x => x.code === codes[idx]);
-    body.append(el("p", "mono", (full ? "day-90 re-rate · fresh first, day 0 stays out of sight until the pass completes" : "between-sessions re-rate") + ` · ${idx + 1} of ${codes.length}`));
+    body.append(el("p", "mono", (full ? "day-90 re-rate · fresh first, day 0 stays out of sight until the pass completes" : "between-sessions re-rate") + ` · ${d.name} · ${idx + 1} of ${codes.length}`));
     const card = el("div", "dcard");
-    const h = el("h2"); h.append(el("span", "code", d.code), document.createTextNode(d.name)); card.append(h);
+    const h = el("h2"); h.append(document.createTextNode(d.name)); h.setAttribute("tabindex", "-1"); card.append(h);
     card.append(el("p", "desc", d.desc));
     const dl = el("dl", "anchors");
     for (const k of [2, 5, 8]) dl.append(el("dt", null, String(k)), el("dd", null, d.anchors[k]));
     card.append(dl);
     const bar = el("div", "ratebar");
+    bar.setAttribute("role", "radiogroup"); bar.setAttribute("aria-label", d.name + ", 0 to 10");
     for (let v = 0; v <= 10; v++) {
       const b = el("button", values[d.code] === v ? "sel" : "", String(v));
-      b.addEventListener("click", () => { values[d.code] = v; idx++; step(); });
+      b.setAttribute("role", "radio"); b.setAttribute("aria-checked", values[d.code] === v ? "true" : "false");
+      b.setAttribute("aria-label", d.name + " " + v + " of 10");
+      b.addEventListener("click", () => { values[d.code] = v; step(); });
       bar.append(b);
     }
     card.append(bar);
+    const nav = el("div", "walk-next");
+    const back = el("button", "btn quiet", "← Back");
+    back.disabled = idx === 0;
+    back.addEventListener("click", () => { idx--; step(); });
+    const next = el("button", "btn", idx === codes.length - 1 ? "Review the pass →" : "Next →");
+    next.disabled = values[d.code] === undefined;
+    next.addEventListener("click", () => { idx++; step(); });
+    nav.append(back, next);
     if (full) {
-      const pull = el("button", "btn quiet", "Show my day-0 number anyway");
+      const pull = el("button", "btn quiet", "Show my day-0 number");
       pull.addEventListener("click", () => {
         pulledEarly = true;
         const day0 = S.get().ratings[d.code]?.value;
-        toast(`Day 0 for ${d.name}: ${day0 ?? "not rated"}. Your data is never gated from you; the pull is noted openly on the sheet.`);
+        toast(`Day 0 for ${d.name}: ${day0 ?? "not rated"}. Your data is never gated from you; the early look is noted openly on the sheet.`);
       });
-      card.append(pull);
+      nav.append(pull);
     }
+    card.append(nav);
     body.append(card);
+    queueMicrotask(() => h.focus());
   }
 
-  function finish() {
-    S.addRerate({ at: S.nowStamp(), scope: full ? "full" : codes, values, day0_pulled_early: pulledEarly });
-    if (full) { renderCompare(body, values); }
-    else { show("#screen-day"); setTab("plan"); }
+  function review() {
+    body.textContent = "";
+    body.append(el("h3", null, "The pass, before anything is saved"));
+    body.append(el("p", null, "Check each number. Nothing is recorded until you confirm."));
+    const t = el("table", "delta-table");
+    codes.forEach((code, i) => {
+      const d = DOMAINS.find(x => x.code === code);
+      const tr = el("tr");
+      tr.append(el("td", null, d.name));
+      tr.append(el("td", "mono", String(values[code] ?? "·")));
+      const edit = el("button", "chipbtn", "change");
+      edit.addEventListener("click", () => { idx = i; step(); });
+      const tde = el("td"); tde.append(edit); tr.append(tde);
+      t.append(tr);
+    });
+    body.append(t);
+    const nav = el("div", "export-actions");
+    const back = el("button", "btn quiet", "← Back to the last domain");
+    back.addEventListener("click", () => { idx = codes.length - 1; step(); });
+    const save = el("button", "btn", full ? "Confirm · show day 0 beside today" : "Confirm and save");
+    save.addEventListener("click", () => {
+      S.addRerate({ at: S.nowStamp(), scope: full ? "full" : codes, values, day0_pulled_early: pulledEarly });
+      if (full) renderCompare(body, values);
+      else { show("#screen-day"); setTab("plan"); }
+    });
+    nav.append(back, save);
+    body.append(nav);
   }
+
   step();
 }
 
@@ -774,7 +960,7 @@ function renderCompare(body, freshValues) {
     const a = s.ratings[d.code]?.value, b = freshValues[d.code];
     const tr = el("tr");
     tr.append(el("td", null, d.name));
-    tr.append(el("td", "mono", `${a ?? "—"} → ${b ?? "—"}`));
+    tr.append(el("td", "mono", `${a ?? "·"} → ${b ?? "·"}`));
     const delta = (a != null && b != null) ? b - a : null;
     tr.append(el("td", delta > 0 ? "delta-up" : delta < 0 ? "delta-down" : "delta-flat",
       delta === null ? "" : delta > 0 ? "↑ " + delta : delta < 0 ? "↓ " + Math.abs(delta) : "→ held"));
@@ -783,9 +969,11 @@ function renderCompare(body, freshValues) {
   body.append(t);
   body.append(el("p", null, "Direction leads; magnitude follows. Movement is an outcome."));
   const row = el("div", "export-actions");
+  const redo = el("button", "btn quiet", "Redo this pass (the earlier one stays on the record)");
+  redo.addEventListener("click", () => startRerate("full"));
   const back = el("button", "btn", "Back to the room");
   back.addEventListener("click", () => { show("#screen-day"); setTab("close"); });
-  row.append(back);
+  row.append(back, redo);
   body.append(row);
 }
 
@@ -793,17 +981,26 @@ function miniMap(getVal, label) {
   const wrap = el("div");
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", VIEWBOX);
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", label + ": " + DOMAINS.map(d => d.name + " " + (getVal(d.code) ?? "unrated")).join(", "));
   for (const [code, p] of Object.entries(NODES)) {
     const v = getVal(code);
     const c = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     c.setAttribute("cx", p.x); c.setAttribute("cy", p.y);
     c.setAttribute("r", v != null ? 9 + v * 1.7 : 6);
-    c.setAttribute("class", "node" + (v != null ? "" : " unrated"));
-    if (v != null) c.style.setProperty("--lum", String(v / 10));
+    if (v != null) c.setAttribute("fill", lightFor(v));
+    else { c.setAttribute("fill", "none"); c.setAttribute("stroke", "#B7B1A4"); c.setAttribute("stroke-dasharray", "2.5 3.5"); }
     svg.append(c);
+    if (v != null) {
+      const val = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      val.setAttribute("x", p.x); val.setAttribute("y", p.y + 4.5);
+      val.setAttribute("text-anchor", "middle");
+      val.setAttribute("class", "node-value"); val.textContent = String(v);
+      svg.append(val);
+    }
     const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
     t.setAttribute("x", p.lx); t.setAttribute("y", p.ly); t.setAttribute("text-anchor", p.anchor);
-    t.setAttribute("class", "node-label"); t.textContent = code;
+    t.setAttribute("class", "mini-label"); t.textContent = NODES[code].name;
     svg.append(t);
   }
   wrap.append(svg, el("p", "mono", label));
@@ -877,7 +1074,9 @@ function renderSheet(s, opts) {
   // ratings + words
   sheet.append(el("h3", null, "The ten, in their numbers and their words"));
   const t1 = el("table");
-  const thr = el("tr"); ["domain", "rating", "moved", "their words"].forEach(h => thr.append(el("th", null, h))); t1.append(thr);
+  const thead1 = el("thead"); const thr = el("tr");
+  ["domain", "rating", "moved", "their words"].forEach(h => thr.append(el("th", null, h)));
+  thead1.append(thr); t1.append(thead1);
   for (const d of DOMAINS) {
     const r = s?.ratings[d.code];
     const tr = el("tr");
@@ -947,11 +1146,17 @@ function renderSheet(s, opts) {
 // ---------------------------------------------------------------- boot
 
 initHome();
+S.onPersist((r) => {
+  const n = $("#save-note"); if (!n) return;
+  n.classList.toggle("savefail", !r.ok);
+  const cab = Cabinet.getStatus();
+  n.textContent = (r.ok ? "saved locally " + r.at.slice(11) : "SAVE FAILED · export the file now") + " · cabinet · " + cab.detail;
+});
 Cabinet.loadConf();
 renderCabinetBlock();
 Cabinet.onStatus((st) => {
   const n = $("#save-note");
-  if (n) n.textContent = "autosaved on every touch · cabinet · " + st.detail;
+  if (n && !n.classList.contains("savefail")) n.textContent = "saved locally · cabinet · " + st.detail;
   const line = document.querySelector(".cabinet-line");
   if (line) line.textContent = "cabinet · " + st.detail;
 });

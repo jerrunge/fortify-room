@@ -27,6 +27,8 @@ export class MapView {
     this.handlers = handlers || {};
     this.connectFrom = null;
     this.svg.setAttribute("viewBox", VIEWBOX);
+    this.svg.removeAttribute("role");
+    this.svg.setAttribute("aria-label", "The map. Ten domains; each is a button.");
 
     const defs = document.createElementNS(SVGNS, "defs");
     defs.innerHTML = '<filter id="soften" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="7"/></filter>';
@@ -50,7 +52,11 @@ export class MapView {
       const hit = document.createElementNS(SVGNS, "circle");
       hit.setAttribute("cx", p.x); hit.setAttribute("cy", p.y); hit.setAttribute("r", 34);
       hit.setAttribute("class", "node-hit");
+      hit.setAttribute("role", "button");
+      hit.setAttribute("tabindex", "0");
+      hit.setAttribute("aria-label", p.name + ", not yet rated");
       hit.addEventListener("pointerdown", (e) => { e.preventDefault(); this.tapNode(code); });
+      hit.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); this.tapNode(code); } });
 
       const glow = document.createElementNS(SVGNS, "circle");
       glow.setAttribute("cx", p.x); glow.setAttribute("cy", p.y);
@@ -90,9 +96,12 @@ export class MapView {
 
   tapNode(code) {
     if (this.connectFrom && this.connectFrom !== code) {
-      const key = pairKey(this.connectFrom, code);
+      const from = this.connectFrom;
+      const key = pairKey(from, code);
       this.setConnectFrom(null);
       if (VALID_PAIRS.has(key)) { this.handlers.onConnect && this.handlers.onConnect(key); return; }
+      this.handlers.onConnectInvalid && this.handlers.onConnectInvalid(from, code);
+      return;
     }
     this.handlers.onNodeTap && this.handlers.onNodeTap(code);
   }
@@ -111,6 +120,7 @@ export class MapView {
       els.c.classList.toggle("unrated", !rated);
       this.labelEls[code].classList.toggle("unrated", !rated);
       if (rated) {
+        els.hit.setAttribute("aria-label", NODES[code].name + ", rated " + r.value + " of 10");
         const radius = 9 + r.value * 1.7;
         els.c.setAttribute("r", radius);
         els.c.style.fill = lightFor(r.value);
@@ -120,6 +130,7 @@ export class MapView {
         const h = r.history || [];
         this.ghostEls[code].textContent = h.length ? `${h[h.length - 1].from} → ${r.value}` : "";
       } else {
+        els.hit.setAttribute("aria-label", NODES[code].name + ", not yet rated");
         els.c.setAttribute("r", 7);
         els.c.style.fill = "";
         els.glow.setAttribute("opacity", 0);
@@ -151,7 +162,11 @@ export class MapView {
         hit.setAttribute("x1", A.x); hit.setAttribute("y1", A.y);
         hit.setAttribute("x2", B.x); hit.setAttribute("y2", B.y);
         hit.setAttribute("class", "line-hit");
+        hit.setAttribute("role", "button");
+        hit.setAttribute("tabindex", "0");
+        hit.setAttribute("aria-label", "Line " + NODES[a].name + " to " + NODES[b].name + ", loudness " + l.loudness + (l.keystone ? ", keystone" : "") + ". Activates louder.");
         hit.addEventListener("pointerdown", (e) => { e.preventDefault(); this.handlers.onLineTap && this.handlers.onLineTap(key); });
+        hit.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); this.handlers.onLineTap && this.handlers.onLineTap(key); } });
         this.gLines.append(el, hit);
       }
     }

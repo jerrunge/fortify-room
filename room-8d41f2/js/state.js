@@ -77,6 +77,8 @@ export function nowStamp() {
 
 let session = null;
 let listeners = [];
+let persistListeners = [];
+export function onPersist(fn) { persistListeners.push(fn); }
 
 export function get() { return session; }
 export function onChange(fn) { listeners.push(fn); }
@@ -85,7 +87,9 @@ function emit() {
   session.updated_at = nowStamp();
   if (!session.sync_id) session.sync_id = crypto.randomUUID();
   try { localStorage.setItem(LAST_KEY, session.id); } catch (e) { /* pointer only */ }
-  idbPut(JSON.parse(JSON.stringify(session))).catch(() => { /* the export path still works; the roster will show staleness */ });
+  idbPut(JSON.parse(JSON.stringify(session)))
+    .then(() => persistListeners.forEach(f => f({ ok: true, at: nowStamp() })))
+    .catch(() => persistListeners.forEach(f => f({ ok: false, at: nowStamp() })));
   for (const fn of listeners) fn(session);
 }
 

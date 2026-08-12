@@ -215,4 +215,12 @@ export const REFUSALS = [
   "No lockouts. Your data is never gated from you.",
 ];
 
-export const PRIVACY_LINE = "Your map lives on this device and leaves only in your hand. No account, no cloud, no copy anyone can read from anywhere.";
+export const PRIVACY_LINE = "Your map lives on this device and leaves only in your hand. Jeremy's working copy stays under his own lock, unreadable to anyone without his key.";
+
+// Release state. The room shows none of the machinery; this flag shows one quiet
+// line on the home screen until Jeremy's copy edit and the rehearsal Day land.
+export const CLIENT_READY = false;
+export const DRAFT_LINE = "internal rehearsal build · not yet for a client room";
+
+export const LENS_EXIT_LABEL = "Back to Jeremy";
+export const PAPER_ONLY_LABEL = "keep off the digital file (it still prints)";
