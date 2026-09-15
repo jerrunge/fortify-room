@@ -1459,20 +1459,23 @@ function renderSheet(s, opts) {
   }
   sheet.append(t1);
 
-  // plan
+  // plan: each measure its own unbreakable block, the five levels stacked (B11)
   sheet.append(el("h3", null, "The plan, with its measures"));
-  const t2 = el("table");
-  const th2 = el("tr"); ["item", "dose / who", "day", "the five levels"].forEach(h => th2.append(el("th", null, h))); t2.append(th2);
+  const lvlName = (l) => l === "0" ? "0 · expected" : (l > 0 ? "+" + l : l);
   (s?.plan || []).forEach(p => {
-    const tr = el("tr");
-    tr.append(el("td", null, p.title + (p.referral ? " (referral)" : "")));
-    tr.append(el("td", null, p.referral ? (p.contact || "") : (p.dose || "")));
-    tr.append(el("td", null, p.day || ""));
-    tr.append(el("td", null, ["-2", "-1", "0", "1", "2"].filter(l => p.gas[l]).map(l => `${l === "0" ? "0" : (l > 0 ? "+" + l : l)}: ${p.gas[l]}`).join("  ·  ")));
-    t2.append(tr);
+    const m = el("div", "s-measure");
+    const meta = p.referral ? ["referral", p.contact, p.day ? "by " + p.day : ""] : [p.dose, p.day];
+    m.append(el("div", "s-measure-title", p.title + (meta.filter(Boolean).length ? "  ·  " + meta.filter(Boolean).join("  ·  ") : "")));
+    for (const l of ["2", "1", "0", "-1", "-2"]) if (p.gas[l]) m.append(el("div", "s-level", `${lvlName(l)}   ${p.gas[l]}`));
+    if (p.checkins.length) m.append(el("div", "s-level s-ci", "check-ins · " + p.checkins.map(c => `${c.at.slice(0, 10)} level ${c.level > 0 ? "+" + c.level : c.level}`).join(" · ")));
+    sheet.append(m);
   });
-  if (!s) for (let i = 0; i < 4; i++) { const tr = el("tr"); for (let j = 0; j < 4; j++) tr.append(el("td", null, " ")); t2.append(tr); }
-  sheet.append(t2);
+  if (!s) for (let i = 0; i < 4; i++) {
+    const m = el("div", "s-measure blank");
+    m.append(el("div", "s-measure-title", " "));
+    for (const l of ["2", "1", "0", "-1", "-2"]) m.append(el("div", "s-level", lvlName(l) + "   "));
+    sheet.append(m);
+  }
 
   if (s?.rerates?.length) {
     sheet.append(el("h3", null, "Re-rates"));
