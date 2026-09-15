@@ -66,6 +66,7 @@ export function wordsOf(c, evidence) {
     draft_line: c.DRAFT_LINE,
     lens_exit: c.LENS_EXIT_LABEL,
     paper_only: c.PAPER_ONLY_LABEL,
+    screen: Object.assign({}, c.SECOND_SCREEN || {}),
   };
 }
 
@@ -138,6 +139,8 @@ export function merge(words, c) {
   });
   const gas = {};
   for (const k of GAS_KEYS) gas[k] = need(words.gas && words.gas[k], "gas." + k);
+  const screen = {};
+  for (const k of Object.keys(c.SECOND_SCREEN || {})) screen[k] = need(words.screen && words.screen[k], "screen." + k);
   return {
     RULES: list(words.rules, "rules"),
     ROOM_LAW: need(words.room_law, "room_law"),
@@ -152,6 +155,7 @@ export function merge(words, c) {
     DRAFT_LINE: need(words.draft_line, "draft_line"),
     LENS_EXIT_LABEL: need(words.lens_exit, "lens_exit"),
     PAPER_ONLY_LABEL: need(words.paper_only, "paper_only"),
+    SECOND_SCREEN: screen,
   };
 }
 
@@ -219,14 +223,19 @@ export function render(m) {
   out.push("export const CLIENT_READY = " + (m.CLIENT_READY ? "true" : "false") + ";");
   out.push("export const DRAFT_LINE = " + J(m.DRAFT_LINE) + ";\n");
   out.push("export const LENS_EXIT_LABEL = " + J(m.LENS_EXIT_LABEL) + ";");
-  out.push("export const PAPER_ONLY_LABEL = " + J(m.PAPER_ONLY_LABEL) + ";");
+  out.push("export const PAPER_ONLY_LABEL = " + J(m.PAPER_ONLY_LABEL) + ";\n");
+  out.push("// The second screen (the two-device console, his words 2026-09-15): what the client");
+  out.push("// reads on his own device. Apparatus never; record always.");
+  out.push("export const SECOND_SCREEN = {");
+  for (const k of Object.keys(m.SECOND_SCREEN || {})) out.push("  " + k + ": " + J(m.SECOND_SCREEN[k]) + ",");
+  out.push("};");
   return out.join("\n") + "\n";
 }
 
 // ---------------------------------------------------------------- compare
 
 function snapshot(c) {
-  const pick = ["RULES", "ROOM_LAW", "DOMAINS", "LINES", "FOLLOWUP_FORM", "GAS_LABELS", "METHOD_EVIDENCE", "REFUSALS", "PRIVACY_LINE", "CLIENT_READY", "DRAFT_LINE", "LENS_EXIT_LABEL", "PAPER_ONLY_LABEL"];
+  const pick = ["RULES", "ROOM_LAW", "DOMAINS", "LINES", "FOLLOWUP_FORM", "GAS_LABELS", "METHOD_EVIDENCE", "REFUSALS", "PRIVACY_LINE", "CLIENT_READY", "DRAFT_LINE", "LENS_EXIT_LABEL", "PAPER_ONLY_LABEL", "SECOND_SCREEN"];
   return JSON.stringify(Object.fromEntries(pick.map(k => [k, c[k]])));
 }
 

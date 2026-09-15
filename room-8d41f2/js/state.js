@@ -108,7 +108,7 @@ export async function listSessions() {
   try {
     const all = await idbAll();
     return all
-      .map(s2 => ({ id: s2.id, client_label: s2.client_label, date: s2.date, format: s2.format, updated_at: s2.updated_at || s2.date }))
+      .map(s2 => ({ id: s2.id, sync_id: s2.sync_id, client_label: s2.client_label, date: s2.date, format: s2.format, archived: !!s2.archived, updated_at: s2.updated_at || s2.date }))
       .sort((a, b) => (b.updated_at || "").localeCompare(a.updated_at || ""));
   } catch (e) { return []; }
 }
@@ -138,15 +138,68 @@ export async function sessionIndex() {
   return idx;
 }
 
-// Merge sessions pulled from the cabinet. Last write wins per sync_id.
+// Tombstones: a session deleted on purpose stays deleted, on this device and on any
+// device that pulls from the cabinet. The cabinet row itself becomes a tombstone
+// (an encrypted {deleted:true}), so nothing readable lingers there either.
+const TOMB_KEY = "fortify-room-tombstones";
+export function tombstones() { try { return JSON.parse(localStorage.getItem(TOMB_KEY) || "{}"); } catch (e) { return {}; } }
+function setTombstone(sync_id, on) {
+  const t = tombstones();
+  if (on) t[sync_id] = nowStamp(); else delete t[sync_id];
+  try { localStorage.setItem(TOMB_KEY, JSON.stringify(t)); } catch (e) { /* the device library still holds */ }
+}
+async function idbDelete(id) {
+  const d = await db();
+  return new Promise((resolve, reject) => {
+    const tx = d.transaction(DB_STORE, "readwrite");
+    tx.objectStore(DB_STORE).delete(id);
+    tx.oncomplete = resolve; tx.onerror = () => reject(tx.error);
+  });
+}
+async function touch(id, patch) {
+  const rec = await idbGet(id);
+  if (!rec) throw new Error("Session not found on this device.");
+  Object.assign(rec, patch, { updated_at: nowStamp() });
+  await idbPut(rec);
+  if (session && session.id === id) { Object.assign(session, patch, { updated_at: rec.updated_at }); for (const fn of listeners) fn(session); }
+  return rec;
+}
+export async function renameSession(id, label) { return touch(id, { client_label: String(label || "").trim() }); }
+export async function setArchived(id, on) { return touch(id, { archived: !!on }); }
+// Delete returns the record so the caller can offer an undo; the tombstone lands at once.
+export async function deleteSession(id) {
+  const rec = await idbGet(id);
+  if (!rec) throw new Error("Session not found on this device.");
+  await idbDelete(id);
+  if (rec.sync_id) setTombstone(rec.sync_id, true);
+  if (session && session.id === id) { session = null; try { localStorage.removeItem(LAST_KEY); } catch (e) {} }
+  return rec;
+}
+export async function undeleteSession(rec) {
+  if (!rec || !rec.id) return null;
+  if (rec.sync_id) setTombstone(rec.sync_id, false);
+  await idbPut(rec);
+  return rec;
+}
+
+// Merge sessions pulled from the cabinet. Last write wins per sync_id; a tombstone
+// (here or in the cabinet) wins over any copy.
 export async function importSessions(list) {
   const all = await idbAll();
   const bySync = {};
   for (const s2 of all) if (s2.sync_id) bySync[s2.sync_id] = s2;
+  const tombs = tombstones();
   let merged = 0;
   for (const incoming of list) {
     if (!incoming || !incoming.sync_id) continue;
     const local = bySync[incoming.sync_id];
+    if (incoming.deleted) {
+      // a deletion filed from another device: honor it here, once, and remember it
+      if (local && (local.updated_at || "") < (incoming.updated_at || "")) { await idbDelete(local.id); merged++; }
+      setTombstone(incoming.sync_id, true);
+      continue;
+    }
+    if (tombs[incoming.sync_id]) continue;
     if (local && (local.updated_at || "") >= (incoming.updated_at || "")) continue;
     if (local) incoming.id = local.id;   // same practice record keeps its device identity
     await idbPut(incoming);
@@ -154,6 +207,11 @@ export async function importSessions(list) {
   }
   return merged;
 }
+export async function libraryCount() {
+  const all = await idbAll();
+  return { total: all.length, archived: all.filter(x => x.archived).length };
+}
+export async function exportLibrary() { return idbAll(); }
 
 // ---- ratings -------------------------------------------------------------
 
@@ -166,10 +224,12 @@ export function rate(code, value, phase) {
   emit();
 }
 
-export function addWords(code, text) {
+export function addWords(code, text, by) {
   if (!text || !text.trim()) return;
   const r = session.ratings[code] || (session.ratings[code] = { value: null, history: [], words: [] });
-  r.words.push({ text: text.trim(), at: nowStamp(), paper_only: false });
+  const w = { text: text.trim(), at: nowStamp(), paper_only: false };
+  if (by === "client") w.by = "client";   // typed on the client's own screen; rendered as such everywhere
+  r.words.push(w);
   emit();
 }
 

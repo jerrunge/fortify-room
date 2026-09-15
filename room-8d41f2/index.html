@@ -36,7 +36,7 @@
       </div>
 
       <div class="home-block">
-        <h2>The practice · sessions on this device</h2>
+        <div class="home-block-head"><h2>The practice · sessions on this device</h2><button class="linkish mono" id="btn-manage" type="button">manage</button></div>
         <div id="roster"></div>
         <div class="home-row" style="margin-top:0.7rem;">
           <button class="btn secondary" id="btn-open-file">Open a map file</button>
@@ -48,10 +48,7 @@
         </div>
       </div>
 
-      <div class="home-block">
-        <h2>The cabinet · encrypted backup, automatic</h2>
-        <div id="cabinet-box"></div>
-      </div>
+      <p class="home-foot mono" id="home-foot"></p>
 
     </div>
     <div class="home-ghostmap" id="home-ghostmap">
@@ -67,11 +64,13 @@
       <span class="names" id="day-names"></span>
       <span class="law" id="day-law"></span>
     </div>
+    <div class="console-strip" id="console-strip" hidden></div>
     <svg id="map-svg" role="img" aria-label="The map: ten domains, drawn as it is worked"></svg>
     <div class="lens-card" id="lens-card"></div>
     <div class="map-tools">
       <button class="tool" id="tool-connect">draw a line</button>
       <button class="tool" id="tool-lens">face the client</button>
+      <button class="tool" id="tool-screen">second screen</button>
       <button class="tool" id="tool-home">home</button>
       <span class="mono" id="save-note" style="margin-left:auto;">autosaved on every touch</span>
     </div>
@@ -79,6 +78,24 @@
   <div class="rail">
     <div class="tabs" id="tabs"></div>
     <div class="rail-body" id="rail-body"></div>
+  </div>
+</section>
+
+<!-- SETTINGS: the coach's side, never the arrival -->
+<section id="screen-settings" class="screen"><div class="wiz" id="settings-body"></div></section>
+
+<!-- THE SECOND SCREEN: the client's own device, joined to the room -->
+<section id="screen-client" class="screen">
+  <div class="client-inner">
+    <div class="client-head">
+      <span class="mark">JEREMY RUNGE</span>
+      <div class="client-title">The Living Map <em id="client-law"></em></div>
+      <p class="mono" id="client-status"></p>
+    </div>
+    <div class="client-join" id="client-join" hidden></div>
+    <div class="client-map"><svg id="client-svg" role="img" aria-label="The map: ten domains, drawn as it is worked"></svg><div id="client-ink"></div></div>
+    <div class="client-card" id="client-card"></div>
+    <div class="client-plan" id="client-plan"></div>
   </div>
 </section>
 

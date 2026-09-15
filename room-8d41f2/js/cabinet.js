@@ -128,6 +128,17 @@ async function flush() {
   }
 }
 
+// A deletion travels as a tombstone: the row's ciphertext becomes an encrypted
+// {deleted:true}, so the cabinet keeps nothing readable and other devices honor it.
+export async function fileTombstone(sync_id) {
+  if (!conf || !key || !sync_id) return;
+  try {
+    const ciphertext = await encryptJSON({ deleted: true, sync_id });
+    await call({ op: "put", sync_id, updated_at: new Date().toISOString(), ciphertext });
+  } catch (e) { queue.set(sync_id, { deleted: true, sync_id }); clearTimeout(timer); timer = setTimeout(flush, 30000); }
+}
+export function flushNow() { clearTimeout(timer); return flush(); }
+
 // ---- restore -------------------------------------------------------------
 
 // Pull every cabinet session newer than what this device holds. Returns sessions
@@ -142,7 +153,7 @@ export async function pullNewer(localIndex) {
     if (local && local >= r.updated_at) continue;
     const { row } = await call({ op: "get", sync_id: r.sync_id });
     if (!row) continue;
-    try { out.push(await decryptJSON(row.ciphertext)); }
+    try { const obj = await decryptJSON(row.ciphertext); if (obj && obj.deleted) obj.updated_at = r.updated_at; out.push(obj); }
     catch (e) { /* a row this passphrase cannot open is surfaced, never hidden */ out.push({ __undecryptable: r.sync_id }); }
   }
   return out;

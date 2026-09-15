@@ -227,3 +227,23 @@ export const DRAFT_LINE = "internal rehearsal build · not yet for a client room
 
 export const LENS_EXIT_LABEL = "Back to Jeremy";
 export const PAPER_ONLY_LABEL = "keep off the digital file (it still prints)";
+
+// The second screen (the two-device console, his words 2026-09-15): what the client
+// reads on his own device. Apparatus never; record always.
+export const SECOND_SCREEN = {
+  join_prompt: "The room code, as Jeremy reads it to you.",
+  join_button: "Join the room",
+  joined_line: "Your numbers and your words land on the room's screen as you set them.",
+  waiting_line: "Waiting for the room. Your screen will fill the moment it opens.",
+  offline_line: "The connection dropped. What you set stays here and lands again when it returns.",
+  your_bar_label: "Your number, 0 to 10",
+  words_prompt: "In your own words, if you want them in the margin.",
+  words_button: "Put it in the margin",
+  words_by_client: "in their own typing",
+  plan_heading: "The plan, as it is written",
+  keystone_heading: "The keystone, in your words",
+  console_tool: "second screen",
+  console_code_label: "the room code",
+  console_link_label: "the link",
+  console_stop: "close the second screen",
+};

@@ -6,10 +6,11 @@
 import * as S from "./state.js";
 import { MapView, lineDef, ghostMap, lightFor } from "./map.js";
 import { NODES, VIEWBOX, pairKey } from "./geometry.js";
-import { RULES, ROOM_LAW, DOMAINS, LINES, FOLLOWUP_FORM, GAS_LABELS, METHOD_EVIDENCE, REFUSALS, PRIVACY_LINE, CLIENT_READY, DRAFT_LINE, LENS_EXIT_LABEL, PAPER_ONLY_LABEL } from "../content/content.js";
+import { RULES, ROOM_LAW, DOMAINS, LINES, FOLLOWUP_FORM, GAS_LABELS, METHOD_EVIDENCE, REFUSALS, PRIVACY_LINE, CLIENT_READY, DRAFT_LINE, LENS_EXIT_LABEL, PAPER_ONLY_LABEL, SECOND_SCREEN } from "../content/content.js";
 import { PRACTICES, KEYSTONE_PROTOCOLS } from "../content/arsenal.js";
 import { EVIDENCE } from "../content/evidence.js";
 import * as Cabinet from "./cabinet.js";
+import { Relay, newCode, normalizeCode, joinLink } from "./relay.js";
 
 const $ = (sel) => document.querySelector(sel);
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; };
@@ -46,6 +47,8 @@ function initHome() {
     enterDay();
   });
   renderRoster();
+  renderHomeFoot();
+  $("#btn-manage").addEventListener("click", () => { rosterManaging = !rosterManaging; $("#btn-manage").classList.toggle("on", rosterManaging); $("#btn-manage").textContent = rosterManaging ? "done" : "manage"; renderRoster(); });
   $("#btn-open-file").addEventListener("click", () => $("#file-input").click());
   $("#file-input").addEventListener("change", async (e) => {
     const f = e.target.files[0]; if (!f) return;
@@ -85,7 +88,7 @@ function renderCabinetBlock() {
     const pw = el("input"); pw.type = "password"; pw.placeholder = "Practice passphrase"; pw.autocomplete = "current-password";
     const go = el("button", "btn secondary", "Unlock the cabinet");
     go.addEventListener("click", async () => {
-      try { await Cabinet.unlock(pw.value); await cabinetPull(); renderCabinetBlock(); renderRoster(); }
+      try { await Cabinet.unlock(pw.value); await cabinetPull(); renderSettings(); }
       catch (e) { toast(e.message); }
     });
     const row = el("div", "home-row"); row.append(pw, go); box.append(row);
@@ -97,13 +100,13 @@ function renderCabinetBlock() {
   const start = el("button", "btn secondary", "Start the cabinet");
   start.addEventListener("click", async () => {
     if (!pw.value || !tk.value) { toast("Both the passphrase and the device token are needed."); return; }
-    try { await Cabinet.setup(pw.value, tk.value); await cabinetPush(); renderCabinetBlock(); }
+    try { await Cabinet.setup(pw.value, tk.value); await cabinetPush(); renderSettings(); }
     catch (e) { toast("The cabinet rail is not reachable yet: " + e.message); }
   });
   const join = el("button", "btn quiet", "Join from another device");
   join.addEventListener("click", async () => {
     if (!pw.value || !tk.value) { toast("Both the passphrase and the device token are needed."); return; }
-    try { await Cabinet.join(pw.value, tk.value); await cabinetPull(); renderCabinetBlock(); renderRoster(); }
+    try { await Cabinet.join(pw.value, tk.value); await cabinetPull(); renderSettings(); }
     catch (e) { toast(e.message); }
   });
   const row = el("div", "home-row"); row.append(pw, tk); box.append(row);
@@ -130,30 +133,171 @@ async function cabinetPush() {
   }
 }
 
+let rosterManaging = false;
+let homeUndo = null, homeUndoTimer = null;
 async function renderRoster() {
   const box = $("#roster"); if (!box) return;
   box.textContent = "";
+  if (homeUndo) {
+    const chip = el("button", "undo-chip", homeUndo.label + " · undo");
+    chip.addEventListener("click", async () => { const u = homeUndo; homeUndo = null; clearTimeout(homeUndoTimer); await u.restore(); renderRoster(); });
+    box.append(chip);
+  }
   const sessions = await S.listSessions();
   if (!sessions.length) {
     box.append(el("p", "mono", "nothing on this device yet. sessions land here the moment they begin, and stay."));
     return;
   }
-  for (const meta of sessions.slice(0, 12)) {
-    const row = el("button", "roster-row");
+  const active = sessions.filter(m => !m.archived), archived = sessions.filter(m => m.archived);
+  active.forEach(meta => box.append(rosterRow(meta)));
+  if (!active.length) box.append(el("p", "mono", "every session on this device is archived."));
+  if (archived.length) {
+    const g = el("details", "roster-group");
+    g.append(el("summary", null, `archived · ${archived.length}`));
+    archived.forEach(meta => g.append(rosterRow(meta)));
+    box.append(g);
+  }
+}
+function rosterRow(meta) {
+  const line = `${meta.date}${meta.format === "circle" ? " · circle" : ""} · last touched ${meta.updated_at || meta.date}`;
+  if (!rosterManaging) {
+    const row = el("button", "roster-row" + (meta.archived ? " archived" : ""));
     row.append(el("span", "roster-name", meta.client_label || "·"));
-    row.append(el("span", "mono", `${meta.date}${meta.format === "circle" ? " · circle" : ""} · last touched ${meta.updated_at || meta.date}`));
+    row.append(el("span", "mono", line));
     row.addEventListener("click", async () => {
       try { await S.open(meta.id); currentTab = "walk"; currentDomain = 0; room = null; enterDay(); }
       catch (err) { toast(err.message); }
     });
-    box.append(row);
+    return row;
   }
+  // managing: the label as a field, archive, a recoverable delete
+  const row = el("div", "roster-row managing" + (meta.archived ? " archived" : ""));
+  const edit = el("div", "roster-edit");
+  const inp = el("input"); inp.value = meta.client_label || ""; inp.setAttribute("aria-label", "Rename this session");
+  inp.addEventListener("change", async () => {
+    try { const rec = await S.renameSession(meta.id, inp.value); Cabinet.file(rec); renderRoster(); }
+    catch (e) { toast(e.message); }
+  });
+  edit.append(inp); row.append(edit);
+  row.append(el("span", "mono", line));
+  const acts = el("div", "roster-acts");
+  const arch = el("button", "chipbtn", meta.archived ? "unarchive" : "archive");
+  arch.addEventListener("click", async () => { try { const rec = await S.setArchived(meta.id, !meta.archived); Cabinet.file(rec); renderRoster(); } catch (e) { toast(e.message); } });
+  const del = el("button", "chipbtn rusty", "delete");
+  del.addEventListener("click", async () => {
+    try {
+      const rec = await S.deleteSession(meta.id);
+      Cabinet.fileTombstone(rec.sync_id);
+      homeUndo = { label: `"${rec.client_label || "session"}" deleted`, restore: async () => { await S.undeleteSession(rec); Cabinet.file(rec); } };
+      clearTimeout(homeUndoTimer);
+      homeUndoTimer = setTimeout(() => { homeUndo = null; renderRoster(); }, 8000);
+      renderRoster();
+    } catch (e) { toast(e.message); }
+  });
+  acts.append(arch, del); row.append(acts);
+  return row;
+}
+
+// The arrival's foot: the cabinet's truthful status, and the door to the coach's side.
+function renderHomeFoot() {
+  const f = $("#home-foot"); if (!f) return;
+  f.textContent = "";
+  f.append(el("span", "cabinet-line", "cabinet · " + Cabinet.getStatus().detail));
+  const b = el("button", "linkish", "settings"); b.type = "button";
+  b.addEventListener("click", openSettings);
+  f.append(b);
+}
+
+// ---------------------------------------------------------------- settings: the coach's side
+
+function openSettings() { show("#screen-settings"); renderSettings(); }
+async function renderSettings() {
+  const body = $("#settings-body"); body.textContent = "";
+  const head = el("div", "settings-head");
+  head.append(el("h2", null, "The coach's side"));
+  head.append(el("span", "mono", "never the arrival · nothing here is a client's"));
+  body.append(head);
+
+  const b1 = el("div", "settings-block");
+  b1.append(el("h3", null, "The cabinet · encrypted backup, automatic"));
+  const box = el("div"); box.id = "cabinet-box"; b1.append(box);
+  body.append(b1);
+  renderCabinetBlock();
+  if (Cabinet.getStatus().state === "on") {
+    const row = el("div", "settings-row");
+    const fileB = el("button", "btn secondary", "File everything now");
+    fileB.addEventListener("click", async () => { try { await cabinetPush(); await Cabinet.flushNow(); toast("Filed. The cabinet holds every session on this device, encrypted."); } catch (e) { toast(e.message); } });
+    const pullB = el("button", "btn quiet", "Restore from the cabinet");
+    pullB.addEventListener("click", async () => { try { await cabinetPull(); renderRoster(); } catch (e) { toast(e.message); } });
+    row.append(fileB, pullB); b1.append(row);
+  }
+
+  const b2 = el("div", "settings-block");
+  b2.append(el("h3", null, "This device"));
+  const counts = await S.libraryCount();
+  b2.append(el("p", null, `${counts.total} session${counts.total === 1 ? "" : "s"} in the library on this device${counts.archived ? `, ${counts.archived} archived` : ""}.`));
+  let persisted = false; try { persisted = navigator.storage && navigator.storage.persisted ? await navigator.storage.persisted() : false; } catch (e) {}
+  const pLine = el("p", "mono", persisted ? "storage · persistent: the browser will not clear this library to make room" : "storage · not yet persistent: the browser may clear this library under pressure; the cabinet and your exported files are the fallbacks");
+  b2.append(pLine);
+  const row2 = el("div", "settings-row");
+  if (!persisted && navigator.storage && navigator.storage.persist) {
+    const pB = el("button", "btn quiet", "Keep this library persistent");
+    pB.addEventListener("click", async () => { try { await navigator.storage.persist(); } catch (e) {} renderSettings(); });
+    row2.append(pB);
+  }
+  const expB = el("button", "btn secondary", "Export the whole library");
+  expB.addEventListener("click", async () => {
+    const all = await S.exportLibrary();
+    const blob = new Blob([JSON.stringify({ fortifymap_library: 1, exported_at: S.nowStamp(), sessions: all }, null, 1)], { type: "application/json" });
+    const a = el("a"); a.href = URL.createObjectURL(blob); a.download = `living-map-library-${S.today()}.json`; a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    toast(`Saved · living-map-library-${S.today()}.json (${all.length} session${all.length === 1 ? "" : "s"})`);
+  });
+  const impB = el("button", "btn quiet", "Import a library file");
+  impB.addEventListener("click", () => {
+    const input = el("input"); input.type = "file"; input.accept = ".json";
+    input.addEventListener("change", async () => {
+      const f = input.files[0]; if (!f) return;
+      try {
+        const obj = JSON.parse(await f.text());
+        const list = obj.fortifymap_library ? obj.sessions : (obj.fortifymap ? [obj] : null);
+        if (!list) throw new Error("Not a library file or a map file.");
+        const n = await S.importSessions(list);
+        toast(`${n} session${n === 1 ? "" : "s"} merged into this device's library (newer copies win).`);
+        renderSettings();
+      } catch (e) { toast("Could not read that file: " + e.message); }
+    });
+    input.click();
+  });
+  row2.append(expB, impB); b2.append(row2);
+  const buildLine = el("p", "mono", "build · reading");
+  b2.append(buildLine);
+  fetch("sw.js", { cache: "no-store" }).then(r => r.text()).then(t => { const m = t.match(/fortify-room-v\d+/); buildLine.textContent = "build · " + (m ? m[0] : "unknown") + (navigator.onLine ? "" : " · offline"); }).catch(() => { buildLine.textContent = "build · offline copy"; });
+  const row3 = el("div", "settings-row");
+  const relB = el("button", "btn quiet", "Reload to the latest build");
+  relB.addEventListener("click", async () => { try { const r = await navigator.serviceWorker?.getRegistration(); if (r) await r.update(); } catch (e) {} location.reload(); });
+  row3.append(relB); b2.append(row3);
+  body.append(b2);
+
+  const b3 = el("div", "settings-block");
+  b3.append(el("h3", null, "The release"));
+  b3.append(el("p", null, CLIENT_READY ? "Cleared for a client." : "Not yet a client's. The arrival shows one quiet line until both gates land."));
+  if (!CLIENT_READY) b3.append(el("p", "mono", "the arrival's line · " + DRAFT_LINE));
+  b3.append(el("p", "mono", "the two gates (rulings 2026-08-11): his copy edit of every client-facing word, on the copy desk · the live rehearsal day (sunday 2026-10-11, his tap)"));
+  b3.append(el("p", "mono", "the words: edited on the copy desk (a private page), carried into content/content.js by the lane, his rewrite final"));
+  body.append(b3);
+
+  const back = el("div", "settings-row");
+  const backB = el("button", "btn", "Back to the arrival");
+  backB.addEventListener("click", () => { show("#screen-home"); renderRoster(); renderHomeFoot(); });
+  back.append(backB); body.append(back);
 }
 
 // ---------------------------------------------------------------- day
 
 function enterDay() {
   const s = S.get();
+  if (relay && consoleSessionId !== s.id) stopConsole();
   show("#screen-day");
   $("#day-names").textContent = (s.client_label || "·") + "  ·  Jeremy   ·  " + s.date + (s.format === "circle" ? "  ·  circle" : "");
   $("#day-law").textContent = ROOM_LAW.toLowerCase();
@@ -191,7 +335,9 @@ function enterDay() {
   renderTabs(); setTab(currentTab);
   $("#tool-connect").onclick = () => setConnect(!connectMode);
   $("#tool-lens").onclick = () => setLens(true);
-  $("#tool-home").onclick = () => { show("#screen-home"); renderRoster(); };
+  $("#tool-screen").onclick = () => { if (relay) { const st = $("#console-strip"); st.hidden = !st.hidden; } else startConsole(); };
+  $("#tool-home").onclick = () => { show("#screen-home"); renderRoster(); renderHomeFoot(); };
+  renderConsoleStrip(relay ? relay.status : null);
 }
 
 // ---------------------------------------------------------------- the client lens
@@ -296,6 +442,8 @@ function renderTabBadge() { /* reserved for counts; deliberately quiet */ }
 function setTab(id) {
   const switched = id !== currentTab;
   currentTab = id;
+  document.body.classList.toggle("plan-wide", id === "plan" && wideMQ.matches);
+  if (relay) relay.send("focus", { code: walkOrder[currentDomain] });
   renderTabs();
   const body = $("#rail-body"); body.textContent = "";
   if (switched) { body.classList.remove("enter"); void body.offsetWidth; body.classList.add("enter"); }
@@ -359,7 +507,9 @@ function renderWalk(body) {
   mw.append(el("h3", null, "Their words, in the margin"));
   (s.ratings[d.code]?.words || []).forEach((w) => {
     const row = el("div", "word-item");
-    row.append(el("span", null, "“" + w.text + "”"), el("span", "mono", w.at.slice(11)));
+    row.append(el("span", null, "“" + w.text + "”"));
+    if (w.by === "client") row.append(el("span", "mono by", SECOND_SCREEN.words_by_client));
+    row.append(el("span", "mono", w.at.slice(11)));
     mw.append(row);
   });
   const ta = el("textarea"); ta.placeholder = "Their exact words. The number says how much; the words say what.";
@@ -563,13 +713,14 @@ function renderPlan(body) {
     if (sel.value.startsWith("ks:")) { p = KEYSTONE_PROTOCOLS.find(x => "ks:" + x.id === sel.value); works = p.works; }
     else { p = PRACTICES.find(x => x.id === sel.value); works = [p.domain]; }
     S.addPlanItem({ practice_ref: p.id, title: p.title, referral: !!p.referral, contact: "", dose: "", day: "", works, gas: { "-2": "", "-1": "", "0": "", "1": "", "2": "" }, checkins: [] });
+    activePlan = S.get().plan.length - 1;
     setTab("plan");
   });
   add.append(sel);
   body.append(add);
   body.append(el("p", "mono", "from the arsenal only. nothing is invented in the room. every item leaves with its five levels, expected first."));
 
-  s.plan.forEach((item, i) => {
+  const planCard = (item, i) => {
     const card = el("div", "plan-item");
     const h = el("h4", null, item.title);
     if (item.referral) h.append(el("span", "refchip", "referral · a name and a number"));
@@ -634,8 +785,35 @@ function renderPlan(body) {
     controls.append(rm);
     if (room) controls.append(shareBtn(() => room.share("plan-item", { title: item.title, dose: item.dose, day: item.day })));
     card.append(controls);
-    body.append(card);
-  });
+    return card;
+  };
+
+  // One column as today; on a wide screen the plan reads as a list beside the active
+  // measure, so all five levels of one measure hold the room's attention at once.
+  const wide = wideMQ.matches && s.plan.length > 1;
+  if (!wide) {
+    s.plan.forEach((item, i) => body.append(planCard(item, i)));
+  } else {
+    if (activePlan >= s.plan.length) activePlan = s.plan.length - 1;
+    if (activePlan < 0) activePlan = 0;
+    const md = el("div", "plan-md");
+    const list = el("div", "plan-list");
+    list.append(el("h4", null, `the plan · ${s.plan.length} items`));
+    s.plan.forEach((item, i) => {
+      const row = el("button", "plan-row" + (i === activePlan ? " on" : "")); row.type = "button";
+      const written = ["-2", "-1", "0", "1", "2"].filter(l => item.gas[l] && item.gas[l].trim()).length;
+      const last = item.checkins[item.checkins.length - 1];
+      row.append(el("span", "num", String(i + 1)), el("span", "ttl", item.title),
+        el("span", "sub", `${written} of 5 levels` + (last ? ` · last check-in ${last.level > 0 ? "+" + last.level : last.level}` : "") + (item.referral ? " · referral" : "")));
+      row.setAttribute("aria-pressed", i === activePlan ? "true" : "false");
+      row.addEventListener("click", () => { activePlan = i; setTab("plan"); });
+      list.append(row);
+    });
+    const detail = el("div", "plan-detail");
+    detail.append(planCard(s.plan[activePlan], activePlan));
+    md.append(list, detail);
+    body.append(md);
+  }
 
   // honest roll-up: the only aggregate the machine computes
   const withCheckins = s.plan.filter(p => p.checkins.length);
@@ -655,6 +833,10 @@ function renderPlan(body) {
   rrRow.append(cite("progress-feedback-d014-029", "why brief re-rates · de jong 2021"));
   body.append(rrRow);
 }
+
+let activePlan = 0;
+const wideMQ = window.matchMedia("(min-width:1180px)");
+wideMQ.addEventListener("change", () => { if (currentTab === "plan" && document.querySelector("#screen-day.active")) setTab("plan"); });
 
 let fieldSeq = 0;
 function labeled(text, node) {
@@ -730,7 +912,7 @@ function renderClose(body) {
       const row = el("label", "word-item word-choice");
       const cb = el("input"); cb.type = "checkbox"; cb.checked = w.paper_only;
       cb.addEventListener("change", () => S.setPaperOnly(d.code, wi, cb.checked));
-      row.append(cb, el("span", null, "“" + w.text + "”"), el("span", "mono", PAPER_ONLY_LABEL));
+      row.append(cb, el("span", null, "“" + w.text + "”" + (w.by === "client" ? " (" + SECOND_SCREEN.words_by_client + ")" : "")), el("span", "mono", PAPER_ONLY_LABEL));
       blk.append(row);
     });
     body.append(blk);
@@ -1030,6 +1212,195 @@ function shareBtn(fn) {
   return b;
 }
 
+// ---------------------------------------------------------------- the second screen (his side)
+// Commissioned by his words 2026-09-15: he drives the room on his Mac; the client opens
+// a client version on his own device, joined by a room code. Recorded things land on both
+// screens; the client's screen never shows the apparatus. Jeremy's device is the record.
+
+let relay = null, consoleCode = null, consoleSessionId = null, stateTimer = null;
+function consoleKey(id) { return "fortify-room-console-" + id; }
+async function startConsole() {
+  const s = S.get(); if (!s) return;
+  consoleSessionId = s.id;
+  try { consoleCode = sessionStorage.getItem(consoleKey(s.id)); } catch (e) { consoleCode = null; }
+  if (!consoleCode) { consoleCode = newCode(); try { sessionStorage.setItem(consoleKey(s.id), consoleCode); } catch (e) {} }
+  relay = new Relay(consoleCode, "room");
+  relay.onStatus(st => renderConsoleStrip(st));
+  relay.on("hello", () => { sendState(); S.logMoment("second screen joined"); renderConsoleStrip(relay.status); });
+  relay.on("ping", () => renderConsoleStrip(relay.status));
+  relay.on("rate", (p) => {
+    if (!p || typeof p.value !== "number" || p.value < 0 || p.value > 10 || !DOMAINS.find(d => d.code === p.code)) return;
+    S.rate(p.code, Math.round(p.value));
+    if (document.querySelector("#screen-day.active")) setTab(currentTab);
+    if (lens) renderLensCard();
+  });
+  relay.on("words", (p) => {
+    if (!p || !p.text || !DOMAINS.find(d => d.code === p.code)) return;
+    S.addWords(p.code, String(p.text).slice(0, 2000), "client");
+    if (document.querySelector("#screen-day.active")) setTab(currentTab);
+  });
+  $("#tool-screen").classList.add("live");
+  $("#console-strip").hidden = false;
+  await relay.connect();
+  S.logMoment("second screen opened");
+}
+function stopConsole() {
+  if (relay) { relay.close(); relay = null; }
+  $("#tool-screen").classList.remove("live");
+  $("#console-strip").hidden = true;
+  if (S.get() && S.get().id === consoleSessionId) S.logMoment("second screen closed");
+  consoleSessionId = null;
+}
+function sendState() {
+  if (!relay) return;
+  const s = S.get(); if (!s) return;
+  const copy = S.toFile({});
+  const ink = copy.keystone.ink; copy.keystone = { sentence: copy.keystone.sentence, ink: null };
+  relay.send("state", { session: copy, focus: walkOrder[currentDomain] });
+  if (ink) relay.send("ink", { ink });
+}
+S.onChange(() => { if (!relay) return; clearTimeout(stateTimer); stateTimer = setTimeout(sendState, 350); });
+function renderConsoleStrip(st) {
+  const strip = $("#console-strip"); if (!strip) return;
+  if (!relay) { strip.hidden = true; return; }
+  strip.textContent = "";
+  strip.append(el("span", "st", SECOND_SCREEN.console_code_label + " ·"));
+  strip.append(el("span", "code", consoleCode));
+  const link = el("button", "linkish", SECOND_SCREEN.console_link_label); link.type = "button";
+  link.addEventListener("click", async () => {
+    const url = joinLink(consoleCode);
+    try { await navigator.clipboard.writeText(url); toast("The link is copied. Send it to the second screen, or read the code aloud: " + consoleCode); }
+    catch (e) { openToast(url); }
+  });
+  strip.append(link);
+  const here = relay.peerConnected;
+  const cls = here ? "st here" : (st && st.state === "reconnecting" ? "st gone" : "st");
+  strip.append(el("span", cls, here ? "the second screen is here" : ((st && st.detail) || "connecting")));
+  const stop = el("button", "linkish", SECOND_SCREEN.console_stop); stop.type = "button";
+  stop.addEventListener("click", stopConsole);
+  strip.append(stop);
+}
+
+// ---------------------------------------------------------------- the second screen (the client's device)
+
+let clientMap = null, clientSession = null, clientFocus = null, clientRelay = null, clientInk = null;
+function clientParam() {
+  const u = new URL(location.href);
+  if (u.searchParams.has("join")) return u.searchParams.get("join") || "";
+  if (/^#join/.test(location.hash)) return location.hash.replace(/^#join=?/, "");
+  return null;
+}
+function enterClient(code) {
+  document.body.classList.add("client");
+  show("#screen-client");
+  $("#client-law").textContent = ROOM_LAW;
+  if (!clientMap) clientMap = new MapView($("#client-svg"), { onNodeTap: (c) => { if (clientSession) { clientFocus = c; renderClient(); } } });
+  clientMap.render(null);
+  if (!code) { renderClientJoin(); return; }
+  joinClient(code);
+}
+function renderClientJoin(msg) {
+  const j = $("#client-join"); j.hidden = false; j.textContent = "";
+  j.append(el("p", null, SECOND_SCREEN.join_prompt));
+  const row = el("div", "row");
+  const inp = el("input"); inp.placeholder = "cedar tide harbor 1234"; inp.autocapitalize = "none"; inp.autocomplete = "off"; inp.setAttribute("aria-label", SECOND_SCREEN.join_prompt);
+  const b = el("button", "btn", SECOND_SCREEN.join_button);
+  b.addEventListener("click", () => {
+    const c = normalizeCode(inp.value);
+    if (c.split(" ").length < 3) { inp.focus(); return; }
+    try { history.replaceState(null, "", "?join=" + c.replace(/ /g, "-")); } catch (e) {}
+    j.hidden = true; joinClient(c);
+  });
+  inp.addEventListener("keydown", (e) => { if (e.key === "Enter") b.click(); });
+  row.append(inp, b); j.append(row);
+  if (msg) j.append(el("p", "mono", msg));
+  $("#client-status").textContent = "";
+  $("#client-card").textContent = "";
+  queueMicrotask(() => inp.focus());
+}
+async function joinClient(code) {
+  if (clientRelay) clientRelay.close();
+  clientSession = null; clientFocus = null; clientInk = null;
+  clientRelay = new Relay(code, "screen");
+  clientRelay.onStatus(renderClientStatus);
+  clientRelay.on("ping", () => renderClientStatus(clientRelay.status));
+  clientRelay.on("hello", () => renderClientStatus(clientRelay.status));
+  clientRelay.on("state", (p) => { if (!p || !p.session) return; clientSession = p.session; if (p.focus) clientFocus = p.focus; renderClient(); });
+  clientRelay.on("focus", (p) => { if (p && p.code) { clientFocus = p.code; renderClient(); } });
+  clientRelay.on("ink", (p) => { clientInk = p && p.ink ? p.ink : null; renderClientInk(); });
+  renderClient();
+  await clientRelay.connect();
+}
+function renderClientStatus(st) {
+  const n = $("#client-status"); if (!n || !clientRelay) return;
+  const here = clientRelay.peerConnected;
+  if (st.state === "joined" && here) { n.className = "mono here"; n.textContent = SECOND_SCREEN.joined_line; }
+  else if (st.state === "reconnecting") { n.className = "mono gone"; n.textContent = SECOND_SCREEN.offline_line; }
+  else { n.className = "mono"; n.textContent = SECOND_SCREEN.waiting_line; }
+}
+function renderClient() {
+  const s = clientSession;
+  if (clientMap) clientMap.render(s || null);
+  const card = $("#client-card"); card.textContent = "";
+  const pl = $("#client-plan"); pl.textContent = "";
+  if (!s) { card.append(el("p", "mono", SECOND_SCREEN.waiting_line)); return; }
+  const d = DOMAINS.find(x => x.code === clientFocus) || DOMAINS[0];
+  const h = el("h2"); const cs = el("span", "code", d.code); cs.setAttribute("aria-hidden", "true");
+  h.append(cs, document.createTextNode(d.name)); card.append(h);
+  card.append(el("p", "desc", d.desc));
+  const dl = el("dl", "anchors");
+  for (const k of [2, 5, 8]) dl.append(el("dt", null, String(k)), el("dd", null, d.anchors[k]));
+  card.append(dl);
+  card.append(el("label", "gaslabel", SECOND_SCREEN.your_bar_label));
+  const bar = el("div", "ratebar");
+  bar.setAttribute("role", "radiogroup"); bar.setAttribute("aria-label", d.name + ", 0 to 10");
+  const cur = s.ratings[d.code]?.value;
+  for (let v = 0; v <= 10; v++) {
+    const b = el("button", cur === v ? "sel" : "", String(v));
+    b.setAttribute("role", "radio"); b.setAttribute("aria-checked", cur === v ? "true" : "false");
+    b.setAttribute("aria-label", d.name + " " + v + " of 10");
+    b.addEventListener("click", () => {
+      const r = s.ratings[d.code] || (s.ratings[d.code] = { value: null, history: [], words: [] });
+      r.value = v; renderClient();                     // lit at once; the record lands on the room's device
+      clientRelay.send("rate", { code: d.code, value: v });
+    });
+    bar.append(b);
+  }
+  card.append(bar);
+  const mw = el("div", "client-words");
+  (s.ratings[d.code]?.words || []).forEach((w) => {
+    const row = el("div", "word-item");
+    row.append(el("span", null, "“" + w.text + "”"));
+    if (w.by === "client") row.append(el("span", "mono by", SECOND_SCREEN.words_by_client));
+    row.append(el("span", "mono", (w.at || "").slice(11)));
+    mw.append(row);
+  });
+  const ta = el("textarea"); ta.placeholder = SECOND_SCREEN.words_prompt; ta.setAttribute("aria-label", SECOND_SCREEN.words_prompt);
+  const addRow = el("div", "walk-next");
+  const addB = el("button", "btn secondary", SECOND_SCREEN.words_button);
+  addB.addEventListener("click", () => { const t = ta.value.trim(); if (!t) { ta.focus(); return; } clientRelay.send("words", { code: d.code, text: t }); ta.value = ""; });
+  addRow.append(addB); mw.append(ta, addRow); card.append(mw);
+  if (s.keystone && s.keystone.sentence) {
+    pl.append(el("h3", null, SECOND_SCREEN.keystone_heading));
+    pl.append(el("p", "client-law", "“" + s.keystone.sentence + "”"));
+  }
+  if (s.plan && s.plan.length) {
+    pl.append(el("h3", null, SECOND_SCREEN.plan_heading));
+    s.plan.forEach(p => {
+      const it = el("div", "plan-item");
+      it.append(el("h4", null, p.title));
+      const sub = p.referral ? [p.contact, p.day ? "by " + p.day : ""].filter(Boolean).join(" · ") : [p.dose, p.day].filter(Boolean).join(" · ");
+      if (sub) it.append(el("p", "mono", sub));
+      for (const lvl of ["2", "1", "0", "-1", "-2"]) if (p.gas && p.gas[lvl]) { const l = el("p", "lvl-line"); l.append(el("b", null, lvl === "0" ? "0" : (lvl > 0 ? "+" + lvl : lvl)), document.createTextNode(p.gas[lvl])); it.append(l); }
+      pl.append(it);
+    });
+  }
+}
+function renderClientInk() {
+  const box = $("#client-ink"); if (!box) return; box.textContent = "";
+  if (clientInk) { const img = el("img"); img.src = clientInk; img.alt = "The keystone sentence, handwritten"; box.append(img); }
+}
+
 // ---------------------------------------------------------------- the printed Sheet
 
 function renderSheet(s, opts) {
@@ -1083,7 +1454,7 @@ function renderSheet(s, opts) {
     tr.append(el("td", null, `${d.code} ${d.name}`));
     tr.append(el("td", null, r?.value != null ? String(r.value) : ""));
     tr.append(el("td", null, (r?.history || []).map(g => `${g.from}→${g.to}`).join("  ")));
-    tr.append(el("td", null, (r?.words || []).map(w => "“" + w.text + "”").join("  ")));
+    tr.append(el("td", null, (r?.words || []).map(w => "“" + w.text + "”" + (w.by === "client" ? " (" + SECOND_SCREEN.words_by_client + ")" : "")).join("  ")));
     t1.append(tr);
   }
   sheet.append(t1);
@@ -1145,6 +1516,11 @@ function renderSheet(s, opts) {
 
 // ---------------------------------------------------------------- boot
 
+const joinCode = clientParam();
+if (joinCode !== null) {
+  enterClient(normalizeCode(joinCode.replace(/-/g, " ")));
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+} else {
 initHome();
 S.onPersist((r) => {
   const n = $("#save-note"); if (!n) return;
@@ -1153,7 +1529,7 @@ S.onPersist((r) => {
   n.textContent = (r.ok ? "saved locally " + r.at.slice(11) : "SAVE FAILED · export the file now") + " · cabinet · " + cab.detail;
 });
 Cabinet.loadConf();
-renderCabinetBlock();
+renderHomeFoot();
 Cabinet.onStatus((st) => {
   const n = $("#save-note");
   if (n && !n.classList.contains("savefail")) n.textContent = "saved locally · cabinet · " + st.detail;
@@ -1163,4 +1539,5 @@ Cabinet.onStatus((st) => {
 if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 // Acceptance hook: archetype replays load a file via ?replay= (used by tests, harmless live)
-window.__fortify = { load: (obj) => { S.load(obj); enterDay(); }, get: () => S.get(), startRerate };
+window.__fortify = { load: (obj) => { S.load(obj); enterDay(); }, get: () => S.get(), startRerate, startConsole, stopConsole, code: () => consoleCode };
+}

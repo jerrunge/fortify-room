@@ -69,7 +69,13 @@ These are method and ruling, not oversights. Flag friction WITHIN them, never ag
    2026-09-15 that file is GENERATED from his Copy Desk page by `scripts/copy-desk.mjs`
    (see README); never hand-edit it. Note copy problems as observations; do not treat
    rewording as a fix you land.
-9. **Evidence is generated from a claims ledger** (`content/evidence.js`;
+9. **The second screen shows record, never apparatus** (his taps 2026-09-15). The
+   client's device (`?join=code`) renders the map, the current card and anchors, his own
+   bar, his words, the keystone and the plan; never probes, listen-for lines, tabs,
+   citations, exports, the Cabinet or the roster. It stores nothing; Jeremy's device is
+   the record. The transport (`js/relay.js`) is encrypted under the room code and keeps
+   no dependency; do not add a library for it.
+10. **Evidence is generated from a claims ledger** (`content/evidence.js`;
    `scripts/evidence-check.mjs` gates deploys). Never hand-edit claims.
 
 ## The commission: a second opinion on UX/UI

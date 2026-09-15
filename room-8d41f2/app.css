@@ -356,3 +356,97 @@ details.review-block summary{font-family:var(--display); font-weight:700; font-s
 .mini-label{font-family:var(--mono); font-size:13px; letter-spacing:0.04em; fill:var(--land);}
 @media (max-width:700px){ .compare-grid{grid-template-columns:1fr;} }
 .draftnote{border-top:1px dotted var(--hairline); padding-top:0.9rem;}
+
+
+/* ---------- the arrival's foot: one truthful line and the coach's door ---------- */
+.home-foot{display:flex; gap:0.8rem; align-items:baseline; flex-wrap:wrap; color:var(--slate); font-size:0.68rem;}
+.linkish{font-family:var(--mono); font-size:0.66rem; letter-spacing:0.06em; text-transform:lowercase; color:var(--slate);
+  border-bottom:1px dotted var(--slate); padding:0.2rem 0; min-height:44px; display:inline-flex; align-items:flex-end;}
+.linkish:hover{color:var(--land); border-bottom-color:var(--land);}
+.linkish.on{color:var(--red); border-bottom-color:var(--red);}
+.home-block-head{display:flex; align-items:baseline; justify-content:space-between; gap:0.8rem;}
+.home-block-head h2{margin-bottom:0.7rem;}
+
+/* ---------- roster management ---------- */
+.roster-row.managing{cursor:default;}
+.roster-edit{display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; width:100%;}
+.roster-edit input{flex:1 1 180px; font-family:var(--display); font-weight:700; font-size:0.98rem; padding:0.45rem 0.6rem;}
+.roster-acts{display:flex; gap:0.4rem; flex-wrap:wrap; margin-top:0.35rem;}
+.roster-group{margin-top:0.8rem;}
+.roster-group summary{font-family:var(--mono); font-size:0.66rem; letter-spacing:0.06em; text-transform:lowercase; color:var(--slate); cursor:pointer; min-height:44px; display:flex; align-items:center;}
+.roster-row.archived .roster-name{color:var(--slate);}
+
+/* ---------- settings: the coach's side ---------- */
+#screen-settings{background:var(--paper);}
+#screen-settings .wiz{max-width:720px; margin:4vh auto; padding:0 1.4rem 3rem;}
+.settings-head{display:flex; align-items:baseline; gap:1rem; flex-wrap:wrap; margin-bottom:1.2rem;}
+.settings-head h2{font-family:var(--display); font-weight:900; font-size:1.6rem; color:var(--land); letter-spacing:-0.01em;}
+.settings-head .mono{margin-left:auto;}
+.settings-block{background:var(--card); border:1px solid var(--hairline); border-radius:4px; padding:1.15rem 1.25rem; margin-bottom:0.9rem;}
+.settings-block h3{font-family:var(--display); font-weight:700; font-size:1rem; color:var(--land); margin:0 0 0.6rem;}
+.settings-block p{font-size:0.93rem; margin:0.3rem 0;}
+.settings-block .mono{display:block; margin-top:0.35rem; line-height:1.7;}
+.settings-row{display:flex; gap:0.6rem; flex-wrap:wrap; align-items:center; margin-top:0.7rem;}
+.settings-row input{flex:1 1 200px;}
+
+/* ---------- the plan, master-detail on a wide screen ---------- */
+.plan-md{display:grid; grid-template-columns:1fr; gap:1rem; align-items:start;}
+.plan-list{display:none;}
+@media (min-width:1180px){
+  body.plan-wide .rail{max-width:940px; flex:1 1 56%;}
+  body.plan-wide .map-pane{flex:1 1 44%;}
+  body.plan-wide .plan-md{grid-template-columns:minmax(230px,300px) minmax(0,1fr);}
+  body.plan-wide .plan-list{display:block;}
+}
+.plan-list h4{font-family:var(--mono); font-size:0.62rem; letter-spacing:0.08em; text-transform:lowercase; color:var(--slate); margin-bottom:0.5rem; font-weight:500;}
+.plan-row{display:grid; grid-template-columns:1.4rem 1fr; gap:0.2rem 0.6rem; width:100%; text-align:left; background:var(--paper); border:1px solid var(--hairline);
+  border-left:3px solid transparent; border-radius:3px; padding:0.65rem 0.75rem; margin-bottom:0.4rem; min-height:56px; transition:border-color 140ms var(--ease);}
+.plan-row:hover{border-color:var(--slate-l);}
+.plan-row.on{border-left-color:var(--rust); background:var(--card);}
+.plan-row .num{font-family:var(--display); font-weight:900; color:var(--land); font-size:0.95rem; grid-row:1 / span 2;}
+.plan-row .ttl{font-family:var(--display); font-weight:700; font-size:0.92rem; color:var(--land); line-height:1.25;}
+.plan-row .sub{font-family:var(--mono); font-size:0.6rem; letter-spacing:0.05em; text-transform:lowercase; color:var(--slate);}
+.plan-detail .plan-item{margin-bottom:0;}
+.plan-wide-note{font-family:var(--mono); font-size:0.6rem; color:var(--slate); letter-spacing:0.05em; text-transform:lowercase; margin-top:0.6rem; line-height:1.7;}
+
+/* ---------- the second screen: the console strip on his side ---------- */
+.console-strip{display:flex; gap:0.7rem 1.2rem; align-items:baseline; flex-wrap:wrap; padding:0.55rem 1.2rem; border-bottom:1px solid var(--hairline); background:var(--card);}
+.console-strip .code{font-family:var(--display); font-weight:700; font-size:1.05rem; color:var(--land); letter-spacing:0.01em;}
+.console-strip .st{font-family:var(--mono); font-size:0.64rem; letter-spacing:0.05em; text-transform:lowercase; color:var(--slate);}
+.console-strip .st.here{color:var(--kelp);}
+.console-strip .st.gone{color:var(--rust);}
+.console-strip .linkish{min-height:36px;}
+.tool.live{border-color:var(--kelp); color:var(--kelp);}
+
+/* ---------- the second screen: the client's device ---------- */
+#screen-client{background:var(--paper); overflow:auto;}
+.client-inner{max-width:960px; margin:0 auto; padding:clamp(1rem,3vw,2.2rem) clamp(1rem,3vw,2rem) 4rem; display:grid; gap:1.2rem;}
+.client-head{display:grid; gap:0.6rem;}
+.client-title{font-family:var(--display); font-weight:900; font-size:clamp(1.5rem,3vw,2.1rem); color:var(--land); letter-spacing:-0.01em; line-height:1.05;}
+.client-title em{display:block; font-family:var(--serif); font-style:italic; font-weight:500; font-size:1rem; color:var(--slate); letter-spacing:0; margin-top:0.4rem;}
+#client-status{color:var(--slate);}
+#client-status.here{color:var(--kelp);}
+#client-status.gone{color:var(--rust);}
+.client-join{background:var(--card); border:1px solid var(--hairline); border-radius:4px; padding:1.1rem 1.2rem; display:grid; gap:0.7rem; max-width:520px;}
+.client-join p{font-size:0.98rem; color:var(--land);}
+.client-join .row{display:flex; gap:0.6rem; flex-wrap:wrap;}
+.client-join input{flex:1 1 220px; font-family:var(--display); font-weight:700; font-size:1.05rem; letter-spacing:0.02em;}
+.client-map{background:radial-gradient(120% 100% at 50% 38%, var(--card) 0%, var(--paper) 62%, #E9E7DC 100%); border:1px solid var(--hairline); border-radius:4px; padding:0.6rem;}
+.client-map svg{width:100%; max-height:62vh; display:block; margin:0 auto;}
+#client-ink img{display:block; margin:0.4rem auto 0; max-width:min(100%, 520px);}
+.client-card{background:var(--card); border:1px solid var(--hairline); border-radius:4px; padding:1.15rem 1.25rem;}
+.client-card h2{font-family:var(--display); font-weight:900; font-size:1.45rem; color:var(--land); letter-spacing:-0.01em;}
+.client-card .desc{font-style:italic; color:var(--slate); font-size:0.95rem; margin:0.25rem 0 0.9rem; max-width:52ch;}
+.client-card .anchors{max-width:none;}
+.client-card .ratebar{grid-template-columns:repeat(11, minmax(0,1fr));}
+@media (max-width:640px){ .client-card .ratebar{grid-template-columns:repeat(6, 1fr);} }
+.client-words{margin-top:1rem; border-top:1px dotted var(--hairline); padding-top:0.9rem;}
+.client-words .word-item .mono{color:var(--rust);}
+.client-words textarea{margin-top:0.6rem;}
+.client-plan{display:grid; gap:0.7rem;}
+.client-plan h3{font-family:var(--display); font-weight:700; font-size:1rem; color:var(--land);}
+.client-plan .plan-item{margin-bottom:0;}
+.client-plan .lvl-line{font-size:0.92rem; padding:0.15rem 0 0.15rem 1.2rem; text-indent:-1.2rem;}
+.client-plan .lvl-line b{font-family:var(--mono); font-weight:500; font-size:0.7rem; color:var(--rust); margin-right:0.4rem;}
+.client-law{font-style:italic; color:var(--slate); font-size:0.95rem; border-left:2px solid var(--red); padding-left:0.9rem;}
+.word-item .by{color:var(--rust); margin-left:0; white-space:nowrap;}
