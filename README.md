@@ -29,10 +29,29 @@ Deploys as GitHub Pages; the directory name is the estate's hashed-URL pattern.
 
 ## Gates that are Jeremy's, not buildable around
 
-- His edit of `room-8d41f2/content/content.js` (all client-facing words). His
-  rewrite is final; the instrument is not client-ready until it lands.
+- His copy edit of every client-facing word, made on the Copy Desk (jr-os-docs
+  `docs/strategy/living-map-copy-desk-2026-09-15.html`, his private edit page; his
+  saves come back into `room-8d41f2/content/content.js` through
+  `scripts/copy-desk.mjs`). His rewrite is final; the instrument is not client-ready
+  until it lands.
 - The live rehearsal Day (spec S9).
 - The SX module carries the JER-84 licensed-therapist review gate.
+
+## The Copy Desk (his edit surface, since 2026-09-15)
+
+`content/content.js` is generated. The words live on the Copy Desk page in the vault;
+Jeremy edits there and presses Save, which publishes a new version of that page. A
+session then carries the words back:
+
+1. Read the saved page (the artifact's current HTML, or the vault file after `build`).
+2. `node scripts/copy-desk.mjs check <page.html>`: the round trip must close.
+3. `node scripts/copy-desk.mjs sync <page.html>`: writes `content.js` (words his,
+   structure the room's: codes, pairs, tiers, evidence keys, the release flag).
+4. `node scripts/evidence-check.mjs`: must be green.
+5. Bump `CACHE` in `room-8d41f2/sw.js`, commit, push. GitHub Pages deploys main.
+
+A grammar comb is the only edit a session may make after a sync. Never hand-edit
+`content.js`; the next sync overwrites it.
 
 ## Acceptance fixtures
 

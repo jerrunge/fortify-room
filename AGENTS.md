@@ -65,8 +65,10 @@ These are method and ruling, not oversights. Flag friction WITHIN them, never ag
 7. **No sound, ever. No spinners. Offline is a supported mode.** Autosave on every
    touch; every session is its own IndexedDB record (the practice roster on home).
 8. **The copy is Jeremy's lane.** Every client-facing word lives in
-   `room-8d41f2/content/content.js`, awaiting his rewrite, which is final. Note copy
-   problems as observations; do not treat rewording as a fix you land.
+   `room-8d41f2/content/content.js`, awaiting his rewrite, which is final. Since
+   2026-09-15 that file is GENERATED from his Copy Desk page by `scripts/copy-desk.mjs`
+   (see README); never hand-edit it. Note copy problems as observations; do not treat
+   rewording as a fix you land.
 9. **Evidence is generated from a claims ledger** (`content/evidence.js`;
    `scripts/evidence-check.mjs` gates deploys). Never hand-edit claims.
 
