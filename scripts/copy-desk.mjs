@@ -32,7 +32,8 @@ async function importFresh(path) {
 
 function shortCite(key, ev) {
   if (key === "sfbt-scaling-questions") return "de Shazer & Berg";
-  const first = (ev.src || "").split(",")[0].trim().replace(/\s+[A-Z]{1,3}$/, "");
+  let first = (ev.src || "").split(",")[0].trim().replace(/\s+[A-Z]{1,3}$/, "");
+  if (first.split(/\s+/).length > 3) first = first.split(/\s+/).slice(0, 3).join(" "); // institutional sources: the first three words
   const year = ((ev.src || "").match(/\b(19|20)\d{2}\b/) || [])[0];
   return first + (year ? " " + year : "");
 }
